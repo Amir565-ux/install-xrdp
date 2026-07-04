@@ -15,7 +15,7 @@
 # |_|  \__,_|___|\__\___|\__,_| |_.__/ \__, /_/   \_\___/___/___/
 #                                        |___/
 #
-#                    ~~~ Edited by Ushi ~~~
+#                    ~~~ Edited and made by CodingBoyz ~~~
 #
 #          Subscribe to CodingPlayz on YouTube for more!
 #
