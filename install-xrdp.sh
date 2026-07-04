@@ -177,9 +177,13 @@ install_xrdp() {
 
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     xrdp \
-    xorgxrdp
+    xorgxrdp \
+    dbus-x11 \
+    polkit \
+    xauth \
+    x11-xserver-utils
 
-  success "xrdp installed."
+  success "xrdp and all required session packages installed."
 }
 
 # ─── Configure xrdp ───────────────────────────────────────────────────────────
@@ -191,6 +195,25 @@ configure_xrdp() {
     usermod -aG ssl-cert xrdp
     info "xrdp user added to ssl-cert group."
   fi
+
+  # ── Fix sesman.ini — prevents crash on password entry ──────────────────────
+  SESMAN_INI="/etc/xrdp/sesman.ini"
+  if [[ -f "${SESMAN_INI}" ]]; then
+    cp "${SESMAN_INI}" "${SESMAN_INI}.bak.$(date +%Y%m%d%H%M%S)"
+    sed -i 's/^MaxDisplays=.*/MaxDisplays=50/'       "${SESMAN_INI}"
+    sed -i 's/^X11DisplayOffset=.*/X11DisplayOffset=10/' "${SESMAN_INI}"
+    # Allow xrdp to start a session even without a PAM display login
+    sed -i 's/^KillDisconnected=.*/KillDisconnected=false/' "${SESMAN_INI}"
+    info "sesman.ini configured (MaxDisplays, X11DisplayOffset, KillDisconnected)."
+  fi
+
+  # ── Fix home folder permissions for all regular users ──────────────────────
+  while IFS=: read -r uname _ uid _ _ uhome _; do
+    if [[ "${uid}" -ge 1000 && "${uname}" != "nobody" && -d "${uhome}" ]]; then
+      chmod 755 "${uhome}"
+      info "Fixed permissions for home: ${uhome}"
+    fi
+  done < /etc/passwd
 
   # Write a startup session file for XFCE if it is installed
   if dpkg-query -W -f='${Status}' xfce4 2>/dev/null | grep -q 'install ok installed'; then
@@ -234,33 +257,50 @@ EOF
 enable_xrdp_service() {
   step "Starting xrdp service"
 
-  # Kill any existing xrdp processes cleanly before starting fresh
-  pkill -x xrdp      2>/dev/null || true
+  # ── Clean stop any old processes ───────────────────────────────────────────
   pkill -x xrdp-sesman 2>/dev/null || true
-  sleep 1
+  pkill -x xrdp        2>/dev/null || true
+  sleep 2
 
-  # Try service command first (works on init.d systems too)
-  if command -v service &>/dev/null; then
-    service xrdp start 2>/dev/null && true
-  fi
+  # ── Required runtime directories ───────────────────────────────────────────
+  mkdir -p /var/run/xrdp
+  mkdir -p /var/run/xrdp/sockdir
+  mkdir -p /tmp/.X11-unix
+  chmod 1777 /tmp/.X11-unix
 
-  # If xrdp is still not running, start it directly
-  if ! pgrep -x xrdp &>/dev/null; then
-    info "Starting xrdp directly..."
-    mkdir -p /var/run/xrdp
-    /usr/sbin/xrdp-sesman &>/var/log/xrdp-sesman.log &
+  # ── Start dbus if not running — needed to avoid session crash ──────────────
+  if ! pgrep -x dbus-daemon &>/dev/null; then
+    info "Starting dbus-daemon..."
+    mkdir -p /run/dbus
+    dbus-daemon --system --fork 2>/dev/null || true
     sleep 1
-    /usr/sbin/xrdp --nodaemon &>/var/log/xrdp.log &
-    sleep 2
   fi
 
-  # Verify xrdp is listening on 3389
+  # ── Start xrdp-sesman FIRST (session manager) ──────────────────────────────
+  info "Starting xrdp-sesman (session manager)..."
+  /usr/sbin/xrdp-sesman --nodaemon &>/var/log/xrdp-sesman.log &
+  sleep 2
+
+  if ! pgrep -x xrdp-sesman &>/dev/null; then
+    error "xrdp-sesman failed to start. Log: /var/log/xrdp-sesman.log"
+    exit 1
+  fi
+  success "xrdp-sesman is running."
+
+  # ── Start xrdp ─────────────────────────────────────────────────────────────
+  info "Starting xrdp..."
+  /usr/sbin/xrdp --nodaemon &>/var/log/xrdp.log &
+  sleep 2
+
+  # ── Verify port 3389 is open ───────────────────────────────────────────────
   if ss -tlnp 2>/dev/null | grep -q ':3389'; then
     success "xrdp is running and listening on port 3389."
   elif pgrep -x xrdp &>/dev/null; then
     success "xrdp process is running."
   else
-    error "xrdp failed to start. Check logs: /var/log/xrdp.log"
+    error "xrdp failed to start. Check logs:"
+    error "  /var/log/xrdp.log"
+    error "  /var/log/xrdp-sesman.log"
     exit 1
   fi
 }
