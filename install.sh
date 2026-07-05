@@ -2,7 +2,7 @@
 
 # ======================================================
 #   MASTER SCRIPT: CodingBoyz XRDP Installer
-#   Supports: Normal Systemd, Disabled Systemd (SysVinit)
+#   Forces Tailscaled to run as a raw background daemon
 # ======================================================
 
 RED='\033[0;31m'
@@ -24,7 +24,7 @@ apt-get update -y > /dev/null 2>&1
 apt-get install -y figlet > /dev/null 2>&1
 
 echo -e "${CYAN}"
-figlet -w 120 -c "CodingBoyz"
+figlet -w 110 -c "CodingBoyz"
 echo -e "${NC}"
 echo -e "${DIM}                     Subscribe to CodingBoyz${NC}"
 echo ""
@@ -44,11 +44,9 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
-# DETECT IF SYSTEMD IS ACTUALLY WORKING OR DISABLED
 if systemctl is-system-running &> /dev/null; then
     INIT_SYS="systemd"
 else
-    # If systemctl fails, systemd is disabled. Fallback to SysVinit (service command)
     INIT_SYS="sysvinit"
 fi
 
@@ -56,7 +54,7 @@ echo -e "${GREEN}[INFO] Init System detected: $INIT_SYS${NC}"
 echo ""
 
 # ------------------------------------------------------
-# Smart Service Controller (Bypasses disabled systemd)
+# Smart Service Controller (For XRDP only)
 # ------------------------------------------------------
 enable_service() {
     local service_name=$1
@@ -72,7 +70,6 @@ start_service() {
     if [ "$INIT_SYS" = "systemd" ]; then
         systemctl start "$service_name" > /dev/null 2>&1
     else
-        # Directly run the init script if 'service' command also fails
         if [ -f "/etc/init.d/$service_name" ]; then
             /etc/init.d/$service_name start > /dev/null 2>&1
         else
@@ -145,7 +142,6 @@ if [ -f /etc/xrdp/startwm.sh ]; then
     sed -i 's/test -x \/etc\/X11\/Xsession \&\& exec \/etc\/X11\/Xsession/exec \/etc\/X11\/Xsession/g' /etc/xrdp/startwm.sh
 fi
 
-# Start XRDP using the smart controller
 enable_service xrdp
 start_service xrdp
 restart_service xrdp
@@ -173,63 +169,96 @@ echo -e "${GREEN}       [DONE] User '$USERNAME' created.${NC}"
 echo ""
 
 # ------------------------------------------------------
-# STEP 6: Install Tailscale
+# STEP 6: Install Tailscale & Start as RAW Daemon
 # ------------------------------------------------------
 echo -e "${BOLD}${WHITE}[4/5] Installing Tailscale...${NC}"
 curl -fsSL https://tailscale.com/install.sh | sh > /dev/null 2>&1
 
-enable_service tailscaled
-start_service tailscaled
+# KILL any existing tailscaled processes to avoid conflicts
+pkill -9 tailscaled 2>/dev/null
+sleep 1
 
-echo -e "${GREEN}       [DONE] Tailscale Installed.${NC}"
+echo -e "${YELLOW}       Starting Tailscaled directly as a background daemon...${NC}"
+
+# FORCE START: Run tailscaled directly in the background with a temp state file
+# This completely ignores systemctl/service/init.d failures
+mkdir -p /var/run/tailscale
+/usr/sbin/tailscaled --state=/tmp/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock > /dev/null 2>&1 &
+
+# Give the raw daemon 3 seconds to bind to the socket
+sleep 3
+
+# Verify the raw process is running
+if pgrep -x "tailscaled" > /dev/null; then
+    echo -e "${GREEN}       [DONE] Tailscale Daemon running successfully in background.${NC}"
+    TS_DAEMON_OK=1
+else
+    echo -e "${RED}       [ERROR] Tailscaled daemon failed to start.${NC}"
+    TS_DAEMON_OK=0
+fi
 echo ""
 
 # ------------------------------------------------------
 # STEP 7: Get Login URL & Wait for Connection
 # ------------------------------------------------------
-echo -e "${BOLD}${WHITE}[5/5] Generating Tailscale Login URL...${NC}"
-echo ""
+TS_IP=""
+TS_LOGIN_URL=""
 
-TS_OUTPUT=$(tailscale up 2>&1)
-TS_LOGIN_URL=$(echo "$TS_OUTPUT" | grep -oP 'https://login\.tailscale\.com/a/[a-zA-Z0-9]+' | head -1)
-
-if [ -n "$TS_LOGIN_URL" ]; then
-    echo -e "${CYAN}============================================================${NC}"
-    echo -e "${BOLD}${WHITE}              CONNECT THIS VPS TO TAILSCALE${NC}"
-    echo -e "${CYAN}============================================================${NC}"
+if [ $TS_DAEMON_OK -eq 1 ]; then
+    echo -e "${BOLD}${WHITE}[5/5] Generating Tailscale Login URL...${NC}"
     echo ""
-    echo -e "${YELLOW}  Click this link in your browser to authenticate:${NC}"
-    echo ""
-    echo -e "${CYAN}  ┌──────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}  │${NC} ${BOLD}${GREEN}$TS_LOGIN_URL${NC}"
-    echo -e "${CYAN}  └──────────────────────────────────────────────────────────┘${NC}"
-    echo ""
-    echo -e "${WHITE}  Don't have Tailscale on your PC? Download it:${NC}"
-    echo -e "${GREEN}  https://tailscale.com/download${NC}"
-    echo ""
-    echo -e "${YELLOW}  Waiting for you to click and connect..........${NC}"
-
-    CONNECTED=0
-    for i in $(seq 1 60); do
-        if tailscale status 2>/dev/null | grep -q "connected"; then
-            CONNECTED=1
-            break
+    
+    # Tell tailscale CLI to use the socket we manually started
+    export TS_SOCKET="/var/run/tailscale/tailscaled.sock"
+    
+    # Capture output
+    TS_OUTPUT=$(tailscale up 2>&1)
+    
+    # Extract the URL
+    TS_LOGIN_URL=$(echo "$TS_OUTPUT" | grep -oE 'https://login\.tailscale\.com/a/[a-zA-Z0-9]+' | head -1)
+    
+    if [ -n "$TS_LOGIN_URL" ]; then
+        echo -e "${CYAN}============================================================${NC}"
+        echo -e "${BOLD}${WHITE}              CONNECT THIS VPS TO TAILSCALE${NC}"
+        echo -e "${CYAN}============================================================${NC}"
+        echo ""
+        echo -e "${YELLOW}  Click this link in your browser to authenticate:${NC}"
+        echo ""
+        echo -e "${CYAN}  ┌──────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${CYAN}  │${NC} ${BOLD}${GREEN}$TS_LOGIN_URL${NC}"
+        echo -e "${CYAN}  └──────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        echo -e "${WHITE}  Don't have Tailscale on your PC? Download it:${NC}"
+        echo -e "${GREEN}  https://tailscale.com/download${NC}"
+        echo ""
+        echo -e "${YELLOW}  Waiting for you to click and connect..........${NC}"
+        
+        CONNECTED=0
+        for i in $(seq 1 60); do
+            if tailscale status 2>/dev/null | grep -q "connected"; then
+                CONNECTED=1
+                break
+            fi
+            sleep 2
+            printf "${DIM}."
+        done
+        echo ""
+        echo ""
+        
+        if [ $CONNECTED -eq 1 ]; then
+            TS_IP=$(tailscale ip -4 2>/dev/null)
+            echo -e "${GREEN}  [SUCCESS] Tailscale connected! IP: $TS_IP${NC}"
+        else
+            echo -e "${RED}  [TIMEOUT] Tailscale did not connect in time.${NC}"
         fi
-        sleep 2
-        printf "${DIM}."
-    done
-    echo ""
-    echo ""
-
-    if [ $CONNECTED -eq 1 ]; then
-        TS_IP=$(tailscale ip -4 2>/dev/null)
-        echo -e "${GREEN}  [SUCCESS] Tailscale connected! IP: $TS_IP${NC}"
+        echo ""
     else
-        echo -e "${RED}  [TIMEOUT] Tailscale did not connect in time.${NC}"
+        echo -e "${RED}  [ERROR] Could not generate Tailscale URL.${NC}"
+        echo -e "${DIM}  Debug output: $TS_OUTPUT${NC}"
+        echo ""
     fi
-    echo ""
 else
-    echo -e "${RED}  [ERROR] Could not generate Tailscale URL.${NC}"
+    echo -e "${BOLD}${WHITE}[5/5] Skipped URL generation (Daemon failed).${NC}"
     echo ""
 fi
 
