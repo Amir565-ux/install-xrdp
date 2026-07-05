@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ======================================================
-#   UNIVERSAL MASTER SCRIPT: CodingBoyz XRDP Installer
-#   Supports: Systemd, OpenRC (Alpine), SysVinit
+#   MASTER SCRIPT: CodingBoyz XRDP Installer
+#   Supports: Normal Systemd, Disabled Systemd (SysVinit)
 # ======================================================
 
 RED='\033[0;31m'
@@ -20,13 +20,8 @@ DIM='\033[2m'
 # ------------------------------------------------------
 clear
 
-# Detect package manager to install figlet temporarily
-if command -v apt-get &> /dev/null; then
-    apt-get update -y > /dev/null 2>&1
-    apt-get install -y figlet > /dev/null 2>&1
-elif command -v apk &> /dev/null; then
-    apk add --no-cache figlet > /dev/null 2>&1
-fi
+apt-get update -y > /dev/null 2>&1
+apt-get install -y figlet > /dev/null 2>&1
 
 echo -e "${CYAN}"
 figlet -w 120 -c "CodingBoyz"
@@ -36,80 +31,67 @@ echo ""
 echo -e "${YELLOW}============================================================${NC}"
 echo ""
 
-# Remove figlet
-if command -v apt-get &> /dev/null; then
-    apt-get remove -y figlet > /dev/null 2>&1
-    apt-get autoremove -y > /dev/null 2>&1
-elif command -v apk &> /dev/null; then
-    apk del figlet > /dev/null 2>&1
-fi
+apt-get remove -y figlet > /dev/null 2>&1
+apt-get autoremove -y > /dev/null 2>&1
 
 # ------------------------------------------------------
-# STEP 1: Detect OS, Package Manager & Init System
+# STEP 1: Check Root & Detect Init System
 # ------------------------------------------------------
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}[ERROR] Please run this script as root.${NC}"
     exit 1
 fi
 
-# Detect Package Manager
-if command -v apt-get &> /dev/null; then
-    PKG_MGR="apt"
-    INSTALL_CMD="apt-get install -y"
-    UPDATE_CMD="apt-get update -y"
-    export DEBIAN_FRONTEND=noninteractive
-elif command -v apk &> /dev/null; then
-    PKG_MGR="apk"
-    INSTALL_CMD="apk add --no-cache"
-    UPDATE_CMD="apk update"
-else
-    echo -e "${RED}[ERROR] Unsupported package manager. Only apt and apk are supported.${NC}"
-    exit 1
-fi
+export DEBIAN_FRONTEND=noninteractive
 
-# Detect Init System (Systemd vs OpenRC vs SysVinit)
-if command -v systemctl &> /dev/null; then
+# DETECT IF SYSTEMD IS ACTUALLY WORKING OR DISABLED
+if systemctl is-system-running &> /dev/null; then
     INIT_SYS="systemd"
-elif command -v rc-update &> /dev/null; then
-    INIT_SYS="openrc"
-elif command -v service &> /dev/null; then
-    INIT_SYS="sysvinit"
 else
-    echo -e "${RED}[ERROR] Could not detect init system (systemd/openrc/sysvinit).${NC}"
-    exit 1
+    # If systemctl fails, systemd is disabled. Fallback to SysVinit (service command)
+    INIT_SYS="sysvinit"
 fi
 
-echo -e "${GREEN}[INFO] Detected Package Manager: $PKG_MGR | Init System: $INIT_SYS${NC}"
+echo -e "${GREEN}[INFO] Init System detected: $INIT_SYS${NC}"
 echo ""
 
 # ------------------------------------------------------
-# Universal Service Controller Function
+# Smart Service Controller (Bypasses disabled systemd)
 # ------------------------------------------------------
 enable_service() {
     local service_name=$1
-    case "$INIT_SYS" in
-        systemd)   systemctl enable "$service_name" > /dev/null 2>&1 ;;
-        openrc)    rc-update add "$service_name" default > /dev/null 2>&1 ;;
-        sysvinit)  update-rc.d "$service_name" defaults > /dev/null 2>&1 ;;
-    esac
+    if [ "$INIT_SYS" = "systemd" ]; then
+        systemctl enable "$service_name" > /dev/null 2>&1
+    else
+        update-rc.d "$service_name" defaults > /dev/null 2>&1
+    fi
 }
 
 start_service() {
     local service_name=$1
-    case "$INIT_SYS" in
-        systemd)   systemctl start "$service_name" > /dev/null 2>&1 ;;
-        openrc)    rc-service "$service_name" start > /dev/null 2>&1 ;;
-        sysvinit)  service "$service_name" start > /dev/null 2>&1 ;;
-    esac
+    if [ "$INIT_SYS" = "systemd" ]; then
+        systemctl start "$service_name" > /dev/null 2>&1
+    else
+        # Directly run the init script if 'service' command also fails
+        if [ -f "/etc/init.d/$service_name" ]; then
+            /etc/init.d/$service_name start > /dev/null 2>&1
+        else
+            service "$service_name" start > /dev/null 2>&1
+        fi
+    fi
 }
 
 restart_service() {
     local service_name=$1
-    case "$INIT_SYS" in
-        systemd)   systemctl restart "$service_name" > /dev/null 2>&1 ;;
-        openrc)    rc-service "$service_name" restart > /dev/null 2>&1 ;;
-        sysvinit)  service "$service_name" restart > /dev/null 2>&1 ;;
-    esac
+    if [ "$INIT_SYS" = "systemd" ]; then
+        systemctl restart "$service_name" > /dev/null 2>&1
+    else
+        if [ -f "/etc/init.d/$service_name" ]; then
+            /etc/init.d/$service_name restart > /dev/null 2>&1
+        else
+            service "$service_name" restart > /dev/null 2>&1
+        fi
+    fi
 }
 
 # ------------------------------------------------------
@@ -146,7 +128,8 @@ echo ""
 # STEP 3: Update System
 # ------------------------------------------------------
 echo -e "${BOLD}${WHITE}[1/5] Updating System Packages...${NC}"
- $UPDATE_CMD > /dev/null 2>&1
+apt-get update -y > /dev/null 2>&1
+apt-get upgrade -y > /dev/null 2>&1
 echo -e "${GREEN}       [DONE] System Updated.${NC}"
 echo ""
 
@@ -154,25 +137,15 @@ echo ""
 # STEP 4: Install Desktop Environment & XRDP
 # ------------------------------------------------------
 echo -e "${BOLD}${WHITE}[2/5] Installing XFCE4 Desktop & XRDP...${NC}"
+apt-get install -y xfce4 xfce4-goodies xrdp > /dev/null 2>&1
 
-if [ "$PKG_MGR" = "apt" ]; then
-    apt-get install -y xfce4 xfce4-goodies xrdp sudo > /dev/null 2>&1
-elif [ "$PKG_MGR" = "apk" ]; then
-    # Alpine needs specific desktop packages and dbus
-    apk add --no-cache xfce4 xfce4-terminal dbus xrdp sudo > /dev/null 2>&1
-    rc-update add dbus default > /dev/null 2>&1
-    rc-service dbus start > /dev/null 2>&1
-fi
-
-# Force XRDP to use XFCE universally
 echo "xfce4-session" > /root/.xsession
 
-# Fix startwm.sh if it exists (Debian/Ubuntu)
 if [ -f /etc/xrdp/startwm.sh ]; then
     sed -i 's/test -x \/etc\/X11\/Xsession \&\& exec \/etc\/X11\/Xsession/exec \/etc\/X11\/Xsession/g' /etc/xrdp/startwm.sh
 fi
 
-# Enable and start XRDP using universal functions
+# Start XRDP using the smart controller
 enable_service xrdp
 start_service xrdp
 restart_service xrdp
@@ -188,27 +161,13 @@ echo -e "${BOLD}${WHITE}[3/5] Creating User '$USERNAME'...${NC}"
 if id "$USERNAME" &>/dev/null; then
     echo "$USERNAME:$PASSWORD" | chpasswd
 else
-    if [ "$PKG_MGR" = "apk" ]; then
-        adduser -D -s /bin/ash "$USERNAME" > /dev/null 2>&1
-    else
-        useradd -m -s /bin/bash "$USERNAME" > /dev/null 2>&1
-    fi
+    useradd -m -s /bin/bash "$USERNAME" > /dev/null 2>&1
     echo "$USERNAME:$PASSWORD" | chpasswd
-    usermod -aG video,audio,input "$USERNAME" 2>/dev/null || addgroup "$USERNAME" video audio input 2>/dev/null
+    usermod -aG sudo "$USERNAME" > /dev/null 2>&1
 fi
 
-# Give sudo rights
-if [ "$PKG_MGR" = "apt" ]; then
-    usermod -aG sudo "$USERNAME" 2>/dev/null
-elif [ "$PKG_MGR" = "apk" ]; then
-    echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/"$USERNAME"
-    chmod 0440 /etc/sudoers.d/"$USERNAME"
-fi
-
-# Set XFCE session for user
-USER_HOME=$(getent passwd "$USERNAME" | cut -d: -f6)
-echo "xfce4-session" > "$USER_HOME/.xsession"
-chown "$USERNAME:$USERNAME" "$USER_HOME/.xsession"
+echo "xfce4-session" > /home/$USERNAME/.xsession
+chown $USERNAME:$USERNAME /home/$USERNAME/.xsession
 
 echo -e "${GREEN}       [DONE] User '$USERNAME' created.${NC}"
 echo ""
@@ -217,14 +176,8 @@ echo ""
 # STEP 6: Install Tailscale
 # ------------------------------------------------------
 echo -e "${BOLD}${WHITE}[4/5] Installing Tailscale...${NC}"
+curl -fsSL https://tailscale.com/install.sh | sh > /dev/null 2>&1
 
-if [ "$PKG_MGR" = "apt" ]; then
-    curl -fsSL https://tailscale.com/install.sh | sh > /dev/null 2>&1
-elif [ "$PKG_MGR" = "apk" ]; then
-    apk add --no-cache tailscale > /dev/null 2>&1
-fi
-
-# Enable and start Tailscaled
 enable_service tailscaled
 start_service tailscaled
 
@@ -256,7 +209,6 @@ if [ -n "$TS_LOGIN_URL" ]; then
     echo ""
     echo -e "${YELLOW}  Waiting for you to click and connect..........${NC}"
 
-    # Wait loop (checks every 2 secs, max 2 mins)
     CONNECTED=0
     for i in $(seq 1 60); do
         if tailscale status 2>/dev/null | grep -q "connected"; then
