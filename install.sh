@@ -1,14 +1,12 @@
 #!/bin/bash
 
 # ======================================================
-#   MASTER SCRIPT: CodingBoyz XRDP Auto-Installer
-#   Run via: bash <(curl -sL <YOUR_GITHUB_RAW_LINK>)
+#   MASTER SCRIPT: CodingBoyz XRDP Auto-Installer v1
+#   Run via: bash <(curl -fsSL https://raw.githubusercontent.com/Amir565-ux/install-xrdp/main/install.sh)
 # ======================================================
 
-# Prevent interactive prompts from blocking the curl pipe
 export DEBIAN_FRONTEND=noninteractive
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -21,26 +19,21 @@ BOLD='\033[1m'
 DIM='\033[2m'
 
 # ------------------------------------------------------
-# STEP 0: Setup Screen & Big Title
+# STEP 0: Big Title + Small Subscribe
 # ------------------------------------------------------
 clear
 
-# Install figlet silently for the big title
 apt-get update -y > /dev/null 2>&1
 apt-get install -y figlet > /dev/null 2>&1
 
-# BIG TITLE
 echo -e "${CYAN}"
 figlet -w 120 -c "CodingBoyz"
 echo -e "${NC}"
-
-# SMALL SUBSCRIBE TEXT
-echo -e "${DIM}                     Subscribe to CodingBoyz${NC}"
+echo -e "${DIM}                     V1 Subscribe to CodingBoyz${NC}"
 echo ""
 echo -e "${YELLOW}============================================================${NC}"
 echo ""
 
-# Remove figlet to keep the VPS clean
 apt-get remove -y figlet > /dev/null 2>&1
 apt-get autoremove -y > /dev/null 2>&1
 
@@ -53,14 +46,13 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # ------------------------------------------------------
-# STEP 2: Ask for Username and Password (Visible)
+# STEP 2: Ask Username & Password (Visible)
 # ------------------------------------------------------
 echo -e "${CYAN}============================================================${NC}"
 echo -e "${BOLD}${WHITE}                      XRDP USER SETUP${NC}"
 echo -e "${CYAN}============================================================${NC}"
 echo ""
 
-# Ask Username
 while true; do
     read -p "$(echo -e ${GREEN}Enter XRDP Username : ${NC})" USERNAME
     if [ -z "$USERNAME" ]; then
@@ -74,7 +66,6 @@ while true; do
     break
 done
 
-# Ask Password
 while true; do
     read -p "$(echo -e ${GREEN}Enter XRDP Password : ${NC})" PASSWORD
     if [ -z "$PASSWORD" ]; then
@@ -110,27 +101,22 @@ echo -e "${GREEN}       [DONE] Desktop Environment Installed.${NC}"
 echo ""
 
 # ------------------------------------------------------
-# STEP 5: Install and Configure XRDP
+# STEP 5: Install & Configure XRDP
 # ------------------------------------------------------
 echo -e "${BOLD}${WHITE}[3/5] Installing and Configuring XRDP...${NC}"
 apt-get install -y xrdp > /dev/null 2>&1
 
-# Force XRDP to use XFCE
 echo "xfce4-session" > /root/.xsession
 
-# Fix common blank screen issues on Ubuntu/Debian
 if [ -f /etc/xrdp/startwm.sh ]; then
     sed -i 's/test -x \/etc\/X11\/Xsession \&\& exec \/etc\/X11\/Xsession/exec \/etc\/X11\/Xsession/g' /etc/xrdp/startwm.sh
 fi
 
-# Add xrdp to ssl-cert group for key access
 usermod -aG ssl-cert xrdp > /dev/null 2>&1
 
-# Enable and Restart XRDP
 systemctl enable xrdp > /dev/null 2>&1
 systemctl restart xrdp > /dev/null 2>&1
 
-# Open Port 3389 on UFW if active
 if command -v ufw &> /dev/null; then
     ufw allow 3389/tcp > /dev/null 2>&1
 fi
@@ -152,7 +138,6 @@ else
     usermod -aG sudo "$USERNAME" > /dev/null 2>&1
 fi
 
-# Set XFCE as default session for the user
 echo "xfce4-session" > /home/$USERNAME/.xsession
 chown $USERNAME:$USERNAME /home/$USERNAME/.xsession
 
@@ -160,21 +145,17 @@ echo -e "${GREEN}       [DONE] User '$USERNAME' is ready for login.${NC}"
 echo ""
 
 # ------------------------------------------------------
-# STEP 7: Install Tailscale & Get Link
+# STEP 7: Install Tailscale on VPS
 # ------------------------------------------------------
-echo -e "${BOLD}${WHITE}[5/5] Installing Tailscale...${NC}"
+echo -e "${BOLD}${WHITE}[5/5] Installing Tailscale on this VPS...${NC}"
 curl -fsSL https://tailscale.com/install.sh | sh > /dev/null 2>&1
 systemctl enable tailscaled > /dev/null 2>&1
 systemctl start tailscaled > /dev/null 2>&1
-
-# Extract the login link
-TS_LINK=$(tailscale up 2>&1 | grep -oP 'https://login\.tailscale\.com/a/[a-zA-Z0-9]+' | head -1)
-
-echo -e "${GREEN}       [DONE] Tailscale Installed.${NC}"
+echo -e "${GREEN}       [DONE] Tailscale installed on VPS.${NC}"
 echo ""
 
 # ------------------------------------------------------
-# STEP 8: Gather IPs
+# Gather Public IP
 # ------------------------------------------------------
 PUBLIC_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || curl -s --max-time 5 icanhazip.com 2>/dev/null || echo "Could not fetch IP")
 
@@ -198,15 +179,28 @@ echo -e "${CYAN}  └───────────────────�
 echo ""
 echo -e "${WHITE}  RDP Connection String : ${GREEN}rdp://$PUBLIC_IP:3389${NC}"
 echo ""
-
-if [ -n "$TS_LINK" ]; then
-    echo -e "${WHITE}  Tailscale Login Link   :${NC}"
-    echo -e "${GREEN}  $TS_LINK${NC}"
-    echo ""
-    echo -e "${YELLOW}  [!] Open the Tailscale link above in your browser to connect.${NC}"
-    echo ""
-fi
-
+echo -e "${CYAN}============================================================${NC}"
+echo -e "${BOLD}${YELLOW}  HOW TO CONNECT VIA TAILSCALE:${NC}"
+echo -e "${CYAN}============================================================${NC}"
+echo ""
+echo -e "${WHITE}  Step 1 : Install Tailscale on YOUR PC/Mac from this link:${NC}"
+echo -e "${GREEN}           https://tailscale.com/download${NC}"
+echo ""
+echo -e "${WHITE}  Step 2 : Login to Tailscale on your PC with your account.${NC}"
+echo ""
+echo -e "${WHITE}  Step 3 : Go to Tailscale Admin Console:${NC}"
+echo -e "${GREEN}           https://login.tailscale.com/admin/machines${NC}"
+echo ""
+echo -e "${WHITE}  Step 4 : Find this VPS (${PUBLIC_IP}) and click '...'^|'Approve'.${NC}"
+echo ""
+echo -e "${WHITE}  Step 5 : On this VPS, run this command to connect:${NC}"
+echo -e "${GREEN}           tailscale up --accept-routes${NC}"
+echo ""
+echo -e "${WHITE}  Step 6 : Get your Tailscale IP by running:${NC}"
+echo -e "${GREEN}           tailscale ip -4${NC}"
+echo ""
+echo -e "${WHITE}  Step 7 : Open RDP on your PC and connect to that Tailscale IP.${NC}"
+echo ""
 echo -e "${CYAN}============================================================${NC}"
 echo -e "${DIM}                     Subscribe to CodingBoyz${NC}"
 echo -e "${CYAN}============================================================${NC}"
