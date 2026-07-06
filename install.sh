@@ -49,7 +49,7 @@ else
 fi
 
 # ==========================================
-# MAIN INTERACTIVE MENU (2 BUTTONS)
+# MAIN INTERACTIVE MENU
 # ==========================================
 show_menu() {
     clear
@@ -63,24 +63,26 @@ show_menu() {
     echo -e "${LIGHT_BLUE}     ██║   ██║  ██║███████╝                       ${NC}"
     echo -e "${LIGHT_BLUE}     ╚═╝   ╚═╝  ╚═╝╚══════╝                       ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}    Made by Deup Gaming | Modified And Error Fixed by CodingBoyz       ${NC}"
+    echo -e "${WHITE}       Made by Deup Gaming | Modified by CodingBoyz       ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo ""
     echo -e "${YELLOW}👉 SELECT AN OPTION TO PROCEED:${NC}"
     echo ""
     echo -e "  ${BRIGHT_BLUE}[1]${NC} Create Ubuntu Instance"
     echo -e "  ${BRIGHT_BLUE}[2]${NC} Restart Instance"
-    echo -e "  ${BRIGHT_BLUE}[3]${NC} Exit"
+    echo -e "  ${BRIGHT_BLUE}[3]${NC} Connect to Instance (Auto-Login)"
+    echo -e "  ${BRIGHT_BLUE}[4]${NC} Exit"
     echo ""
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -ne "${WHITE}🔹 Enter Choice [1-3]: ${NC}"
+    echo -ne "${WHITE}🔹 Enter Choice [1-4]: ${NC}"
     read CHOICE
     
     case $CHOICE in
         1) create_vps ;;
         2) restart_vps ;;
-        3) exit 0 ;;
-        *) echo -e "${RED}❌ Invalid Choice! Please select 1-3.${NC}"; sleep 2; show_menu ;;
+        3) auto_connect ;;
+        4) exit 0 ;;
+        *) echo -e "${RED}❌ Invalid Choice! Please select 1-4.${NC}"; sleep 2; show_menu ;;
     esac
 }
 
@@ -114,7 +116,8 @@ create_vps() {
     echo ""
     
     $SUDO_CMD apt-get update -y > /dev/null 2>&1
-    $SUDO_CMD apt-get install -y qemu-system-x86 qemu-utils wget cloud-image-utils curl > /dev/null 2>&1
+    # Added openssh-client and sshpass here automatically
+    $SUDO_CMD apt-get install -y qemu-system-x86 qemu-utils wget cloud-image-utils curl openssh-client sshpass > /dev/null 2>&1
     
     # Custom absolute path architecture build
     $SUDO_CMD mkdir -p /home/daytona > /dev/null 2>&1
@@ -171,7 +174,7 @@ boot_qemu() {
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo ""
     
-    # Run sshx in background and HIDE ALL ERRORS completely (Fixes curl: 35 firewall blocks)
+    # Run sshx in background and HIDE ALL ERRORS completely
     sshx_log=$(mktemp)
     { curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 & } 2>/dev/null
     
@@ -194,7 +197,7 @@ boot_qemu() {
         echo -e "${GREEN}👉 $SSHX_URL 👈${NC}"
     else
         echo -e "${YELLOW}ℹ️  Web tunnel skipped (Firewall/Network restriction).${NC}"
-        echo -e "${GREEN}✅ Use the standard SSH command below to connect!${NC}"
+        echo -e "${GREEN}✅ Select Option 3 from main menu to Auto-Connect!${NC}"
     fi
     
     echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
@@ -224,6 +227,37 @@ restart_vps() {
         sleep 3
         show_menu
     fi
+}
+
+# AUTO-CONNECT PIPELINE (Uses sshpass so user doesn't have to type hidden passwords)
+auto_connect() {
+    if [ -f ".vps_env" ]; then
+        source .vps_env
+    else
+        echo -e "${RED}❌ No instance found! Please create one using Option 1.${NC}"
+        sleep 2
+        show_menu
+    fi
+
+    # Ensure sshpass is installed
+    if ! command -v sshpass &> /dev/null; then
+        echo -e "${YELLOW}⏳ Installing auto-login dependency...${NC}"
+        $SUDO_CMD apt-get install -y sshpass > /dev/null 2>&1
+    fi
+
+    echo -e "${LIGHT_BLUE}🔄 Connecting to ${USER_NAME} at localhost:${TCP_HOST_PORT}...${NC}"
+    echo -e "${YELLOW}ℹ️  Type 'exit' to return to the CodingBoyz dashboard.${NC}"
+    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
+    sleep 1
+
+    # Automatically passes the password to SSH
+    sshpass -p "${USER_PASS}" ssh -o StrictHostKeyChecking=no ${USER_NAME}@localhost -p ${TCP_HOST_PORT}
+    
+    # Returns to menu after user types 'exit' in the VM
+    echo ""
+    echo -e "${GREEN}✅ Disconnected from VM. Returning to menu...${NC}"
+    sleep 2
+    show_menu
 }
 
 # EXECUTE TRIGGER
