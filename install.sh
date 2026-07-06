@@ -70,20 +70,51 @@ show_menu() {
     echo ""
     echo -e "  ${BRIGHT_BLUE}[1]${NC} Create Ubuntu Instance"
     echo -e "  ${BRIGHT_BLUE}[2]${NC} Restart Instance"
-    echo -e "  ${BRIGHT_BLUE}[3]${NC} Edit Configuration"
-    echo -e "  ${BRIGHT_BLUE}[4]${NC} Exit"
+    echo -e "  ${BRIGHT_BLUE}[3]${NC} Open Terminal (Bypass Login)"
+    echo -e "  ${BRIGHT_BLUE}[4]${NC} Edit Configuration"
+    echo -e "  ${BRIGHT_BLUE}[5]${NC} Exit"
     echo ""
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -ne "${WHITE}🔹 Enter Choice [1-4]: ${NC}"
+    echo -ne "${WHITE}🔹 Enter Choice [1-5]: ${NC}"
     read CHOICE
     
     case $CHOICE in
         1) create_vps ;;
         2) restart_vps ;;
-        3) edit_config ;;
-        4) exit 0 ;;
-        *) echo -e "${RED}❌ Invalid Choice! Please select 1-4.${NC}"; sleep 2; show_menu ;;
+        3) show_terminal_instructions ;;
+        4) edit_config ;;
+        5) exit 0 ;;
+        *) echo -e "${RED}❌ Invalid Choice! Please select 1-5.${NC}"; sleep 2; show_menu ;;
     esac
+}
+
+# ==========================================
+# NEW TERMINAL BYPASS INSTRUCTIONS
+# ==========================================
+show_terminal_instructions() {
+    clear
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${BRIGHT_BLUE}              🖥️  DIRECT VPS TERMINAL ACCESS 🖥️              ${NC}"
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${RED}⚠️  IMPORTANT: The VM must be running (Option 1 or 2) to use this!${NC}"
+    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
+    echo -e "${WHITE}To bypass SSH and login directly as ROOT without a password:${NC}"
+    echo ""
+    echo -e "${YELLOW}1.${NC} Go to the terminal window where the VM is currently running."
+    echo -e "${YELLOW}2.${NC} Wait until you see the VM login prompt (e.g., ${LIGHT_BLUE}localhost login:${NC})."
+    echo -e "${YELLOW}3.${NC} Press and hold ${GREEN}Ctrl${NC}, press ${GREEN}A${NC}, then release both and press ${GREEN}C${NC}."
+    echo -e "${YELLOW}4.${NC} You will see a dark screen with ${LIGHT_BLUE}(qemu)${NC} prompt."
+    echo -e "${YELLOW}5.${NC} Type exactly this command and press Enter:"
+    echo -e "${BRIGHT_BLUE}      gva root${NC}"
+    echo -e "${YELLOW}6.${NC} The direct ROOT terminal of your VPS will instantly open!${NC}"
+    echo ""
+    echo -e "${WHITE}💡 TO GO BACK to the VM login screen later:${NC}"
+    echo -e "${YELLOW}   Press ${GREEN}Ctrl+A${NC}, then press ${GREEN}C${NC} again.${NC}"
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo ""
+    echo -ne "${WHITE}🔹 Press ENTER to return to main menu...${NC}"
+    read 
+    show_menu
 }
 
 # ==========================================
@@ -125,7 +156,6 @@ edit_config() {
     
     echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
     
-    # THE FIX: Wipe the old cloud-init state so Ubuntu accepts the new password
     if [ -f "/home/daytona/ubuntu22.qcow2" ]; then
         loading_bar "Resetting VM password lock state"
         $SUDO_CMD virt-customize -a /home/daytona/ubuntu22.qcow2 --run-command 'rm -rf /var/lib/cloud/instances/*' 2>/dev/null || \
@@ -135,7 +165,6 @@ edit_config() {
         $SUDO_CMD umount /mnt/vm 2>/dev/null && $SUDO_CMD qemu-nbd --disconnect /dev/nbd0 2>/dev/null
     fi
 
-    # Recreate the seed.img with new password
     cat <<EOF > user-data
 #cloud-config
 disable_root: false
@@ -151,7 +180,6 @@ runcmd:
 EOF
     cloud-localds seed.img user-data > /dev/null 2>&1
     
-    # Resize disk if changed
     if [ ! -z "$NEW_DISK" ] && [ -f "/home/daytona/ubuntu22.qcow2" ]; then
         loading_bar "Resizing virtual hard disk"
         $SUDO_CMD qemu-img resize /home/daytona/ubuntu22.qcow2 +${DISK_ADD}G > /dev/null 2>&1
@@ -281,7 +309,7 @@ boot_qemu() {
         echo -e "${GREEN}👉 $SSHX_URL 👈${NC}"
     else
         echo -e "${YELLOW}ℹ️  Web tunnel skipped (Firewall/Network restriction).${NC}"
-        echo -e "${GREEN}✅ To connect: ssh ${USER_NAME:-root}@localhost -p ${TCP_HOST_PORT}${NC}"
+        echo -e "${GREEN}✅ Wait for boot, then use Option [3] to bypass login!${NC}"
     fi
     
     echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
