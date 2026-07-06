@@ -1,2 +1,2 @@
-# command to install xrdp
-bash <(curl -fsSL https://raw.githubusercontent.com/Amir565-ux/install-xrdp/main/install.sh)
+# command to Create and Run Vps Instance
+bash <(curl -fsSL https://raw.githubusercontent.com/Amir565-ux/Installer/main/install.sh)
