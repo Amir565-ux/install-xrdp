@@ -63,7 +63,7 @@ show_menu() {
     echo -e "${LIGHT_BLUE}     ██║   ██║  ██║███████╝                       ${NC}"
     echo -e "${LIGHT_BLUE}     ╚═╝   ╚═╝  ╚═╝╚══════╝                       ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}       Made by Deup Gaming | Modified by CodingBoyz       ${NC}"
+    echo -e "${WHITE}    Made by Deup Gaming | Modified And Error Fixed by CodingBoyz       ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo ""
     echo -e "${YELLOW}👉 SELECT AN OPTION TO PROCEED:${NC}"
@@ -155,7 +155,7 @@ save_env() {
     echo "TCP_GUEST_PORT=${TCP_GUEST_PORT:-22}" >> .vps_env
 }
 
-# BOOT QEMU INSTANCE
+# BOOT QEMU INSTANCE (FIXED VERSION - HIDES FIREWALL ERRORS)
 boot_qemu() {
     if [ -f ".vps_env" ]; then
         source .vps_env
@@ -171,9 +171,9 @@ boot_qemu() {
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo ""
     
-    # Run the exact specified hook sequence
+    # Run sshx in background and HIDE ALL ERRORS completely (Fixes curl: 35 firewall blocks)
     sshx_log=$(mktemp)
-    curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 &
+    { curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 & } 2>/dev/null
     
     sleep 5
     SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n 1)
@@ -188,14 +188,17 @@ boot_qemu() {
     echo -e "${WHITE}⚙️  Resources: ${LIGHT_BLUE}${RAM_VALUE} RAM | ${CPU_CORES:-4} Cores${NC}"
     echo -e "${WHITE}🚀 Port Rule : ${YELLOW}Host Port ${TCP_HOST_PORT} -> VM Port ${TCP_GUEST_PORT}${NC}"
     echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
+    
     if [ ! -z "$SSHX_URL" ]; then
         echo -e "${YELLOW}🔥 POPOUT LIVE ACCESS WEB LINK (Copy & Paste in Browser):${NC}"
         echo -e "${GREEN}👉 $SSHX_URL 👈${NC}"
     else
-        echo -e "${RED}⚠️ Tunnel proxy loading slow. Direct local network port is listening.${NC}"
+        echo -e "${YELLOW}ℹ️  Web tunnel skipped (Firewall/Network restriction).${NC}"
+        echo -e "${GREEN}✅ Use the standard SSH command below to connect!${NC}"
     fi
+    
     echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    echo -e "${WHITE}👉 Connection Command : ssh ${USER_NAME:-ubuntu}@localhost -p ${TCP_HOST_PORT}${NC}"
+    echo -e "${WHITE}👉 Connection Command : ${BRIGHT_BLUE}ssh ${USER_NAME:-ubuntu}@localhost -p ${TCP_HOST_PORT}${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo ""
     
