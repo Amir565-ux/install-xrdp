@@ -56,12 +56,12 @@ show_menu() {
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo -e "${BRIGHT_BLUE}              [💻 CODINGBOYZ VPS MANAGER 💻]              ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${LIGHT_BLUE}   ██████╗ ██████╗ ██████╗ ██╗███╗   ██╗ ██████╗ ${NC}"
-echo -e "${LIGHT_BLUE}  ██╔════╝██╔═══██╗██╔══██╗██║████╗  ██║██╔════╝ ${NC}"
-echo -e "${LIGHT_BLUE}  ██║     ██║   ██║██║  ██║██║██╔██╗ ██║██║  ███╗${NC}"
-echo -e "${LIGHT_BLUE}  ██║     ██║   ██║██║  ██║██║██║╚██╗██║██║   ██║${NC}"
-echo -e "${LIGHT_BLUE}  ╚██████╗╚██████╔╝██████╔╝██║██║ ╚████║╚██████╔╝${NC}"
-echo -e "${LIGHT_BLUE}   ╚═════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝ ╚═════╝ ${NC}"
+    echo -e "${LIGHT_BLUE}   ██████╗  █████╗ ██████╗ ████████╗██╗███╗   ███╗███████╗  ${NC}"
+    echo -e "${LIGHT_BLUE}   ██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██║████╗ ████║██╔════╝  ${NC}"
+    echo -e "${LIGHT_BLUE}   ██████╔╝███████║██████╔╝   ██║   ██║██╔████╔██║█████╗    ${NC}"
+    echo -e "${LIGHT_BLUE}   ██╔═══╝ ██╔══██║██╔══██╗   ██║   ██║██║╚██╔╝██║██╔══╝    ${NC}"
+    echo -e "${LIGHT_BLUE}   ██║     ██║  ██║██║  ██║   ██║   ██║██║ ╚═╝ ██║███████╗  ${NC}"
+    echo -e "${LIGHT_BLUE}   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝  ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo -e "${WHITE}       Made by Deup Gaming | Modified by CodingBoyz       ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
@@ -71,19 +71,104 @@ echo -e "${LIGHT_BLUE}   ╚═════╝ ╚═════╝ ╚══�
     echo -e "  ${BRIGHT_BLUE}[1]${NC} Create Ubuntu Instance"
     echo -e "  ${BRIGHT_BLUE}[2]${NC} Restart Instance"
     echo -e "  ${BRIGHT_BLUE}[3]${NC} Edit Configuration"
-    echo -e "  ${BRIGHT_BLUE}[4]${NC} Exit"
+    echo -e "  ${BRIGHT_BLUE}[4]${NC} Tools"
+    echo -e "  ${BRIGHT_BLUE}[5]${NC} Exit"
     echo ""
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -ne "${WHITE}🔹 Enter Choice [1-4]: ${NC}"
+    echo -ne "${WHITE}🔹 Enter Choice [1-5]: ${NC}"
     read CHOICE
     
     case $CHOICE in
         1) create_vps ;;
         2) restart_vps ;;
         3) edit_config ;;
-        4) exit 0 ;;
-        *) echo -e "${RED}❌ Invalid Choice! Please select 1-4.${NC}"; sleep 2; show_menu ;;
+        4) show_tools_menu ;;
+        5) exit 0 ;;
+        *) echo -e "${RED}❌ Invalid Choice! Please select 1-5.${NC}"; sleep 2; show_menu ;;
     esac
+}
+
+# ==========================================
+# TOOLS SUB-MENU
+# ==========================================
+show_tools_menu() {
+    clear
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${BRIGHT_BLUE}                    🛠️  CODINGBOYZ TOOLS 🛠️                    ${NC}"
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo ""
+    echo -e "  ${BRIGHT_BLUE}[1]${NC} Port Forwarding"
+    echo -e "  ${BRIGHT_BLUE}[2]${NC} Back to Main Menu"
+    echo ""
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -ne "${WHITE}🔹 Select Tool [1-2]: ${NC}"
+    read TOOL_CHOICE
+    
+    case $TOOL_CHOICE in
+        1) tool_port_forwarding ;;
+        2) show_menu ;;
+        *) echo -e "${RED}❌ Invalid Choice!${NC}"; sleep 2; show_tools_menu ;;
+    esac
+}
+
+# ==========================================
+# TOOL 1: PORT FORWARDING
+# ==========================================
+tool_port_forwarding() {
+    clear
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${BRIGHT_BLUE}                 ⚙️ PORT FORWARDING TOOL ⚙️                 ${NC}"
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${YELLOW}ℹ️  This forwards a port from your MAIN server to the VPS.${NC}"
+    echo -e "${YELLOW}    (No VPS restart required! Works instantly.)${NC}"
+    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
+    
+    echo -ne "${LIGHT_BLUE}🔹 Enter MAIN SERVER Port (e.g., 8080): ${NC}"
+    read HOST_PORT
+    echo -ne "${LIGHT_BLUE}🔹 Enter VPS INTERNAL Port (e.g., 80): ${NC}"
+    read GUEST_PORT
+    
+    if [[ -z "$HOST_PORT" || -z "$GUEST_PORT" ]]; then
+        echo -e "${RED}❌ Ports cannot be empty!${NC}"
+        sleep 2
+        show_tools_menu
+        return
+    fi
+
+    # Install socat if not present (socat is the best tool for instant port forwarding)
+    if ! command -v socat &> /dev/null; then
+        echo -e "${YELLOW}⏳ Installing Port Forwarding dependency (socat)...${NC}"
+        $SUDO_CMD apt-get install -y socat > /dev/null 2>&1
+    fi
+
+    # Check if port is already in use on the host
+    if $SUDO_CMD lsof -i :$HOST_PORT > /dev/null 2>&1; then
+        echo -e "${RED}❌ Error: Port $HOST_PORT is already in use on the main server!${NC}"
+        sleep 3
+        show_tools_menu
+        return
+    fi
+
+    # QEMU default internal IP for user-mode networking is 10.0.2.15
+    QEMU_GUEST_IP="10.0.2.15"
+    
+    echo ""
+    loading_bar "Mapping Main Port $HOST_PORT -> VPS Port $GUEST_PORT"
+    
+    # Run socat in background to forward traffic
+    $SUDO_CMD nohup socat TCP-LISTEN:$HOST_PORT,fork,reuseaddr TCP:$QEMU_GUEST_IP:$GUEST_PORT > /dev/null 2>&1 &
+    
+    echo ""
+    echo -e "${GREEN}==========================================================${NC}"
+    echo -e "${GREEN}✅ PORT FORWARDING ACTIVE!${NC}"
+    echo -e "${GREEN}==========================================================${NC}"
+    echo -e "${WHITE}🌐 If someone visits ${BRIGHT_BLUE}http://YOUR_MAIN_IP:$HOST_PORT${NC}"
+    echo -e "${WHITE}   They will automatically reach the VPS on port ${BRIGHT_BLUE}$GUEST_PORT${NC}"
+    echo -e "${GREEN}==========================================================${NC}"
+    echo ""
+    echo -ne "${WHITE}🔹 Press ENTER to return to Tools menu...${NC}"
+    read
+    show_tools_menu
 }
 
 # ==========================================
