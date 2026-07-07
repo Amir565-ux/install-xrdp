@@ -1,330 +1,159 @@
 #!/bin/bash
-
-# Clear terminal for clean dashboard view
 clear
 
-# ==========================================
-# 🌟 CODINGBOYZ BLUE THEME COLOR CODES
-# ==========================================
-DARK_BLUE='\033[0;34m'
-BRIGHT_BLUE='\033[1;34m'
-LIGHT_BLUE='\033[0;36m' # Cyan-Blue
-WHITE='\033[1;37m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+# Colors
+B='\033[1;34m'
+G='\033[0;32m'
+Y='\033[1;33m'
+R='\033[0;31m'
+W='\033[1;37m'
+N='\033[0m'
 
-# FUNCTION: TYPING EFFECT ANIMATION
-type_effect() {
-    local text="$1"
-    local delay="$2"
-    for (( i=0; i<${#text}; i++ )); do
-        echo -n "${text:$i:1}"
-        sleep "$delay"
-    done
-    echo ""
+[ "$(id -u)" -eq 0 ] && S="" || S="sudo"
+
+# Packages Array (100+)
+PKGS=(sudo curl wget git vim nano htop tmux screen tree jq unzip zip tar p7zip-full rar openssh-client openssh-server socat net-tools iproute2 nmap iptables wireguard-tools ngrok cloudflared autossh aria2 rsync lsof strace iotop atop crontab ffmpeg imagemagick file ufw fail2ban ca-certificates gnupg qemu-utils cloud-image-utils netcat-openbsd traceroute mtr-tiny whois dnsutils sipcalc bridge-utils vlan iw wpasupplicant ethtool pciutils usbutils smartmontools hdparm lm-sensors acpi bash-completion man-db apparmor auditd logrotate rsyslog unattended-upgrades apt-listchanges needrestart debconf-utils geoip-bin mmdb-bin binutils gdb valgrind bc dc software-properties-common apt-transport-https lsb-release systemd-resolved build-essential gcc g++ make cmake python3 python3-pip python3-venv nodejs npm ruby ruby-dev php-cli libssl-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev libjpeg-dev libpng-dev libwebp-dev docker.io docker-compose mysql-client postgresql-client sqlite3 redis-tools mongosh fzf ripgrep fd-find bat exa lsd tldr zsh fish)
+
+show_menu() {
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${W}                [ CODINGBOYZ VPS MANAGER ]                ${N}"
+echo -e "${B}==========================================================${N}"
+echo -e "${B}   ██████╗  █████╗ ██████╗ ████████╗██╗███╗   ███╗███████╗${N}"
+echo -e "${B}   ██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██║████╗ ████║██╔════╝${N}"
+echo -e "${B}   ██████╔╝███████║██████╔╝   ██║   ██║██╔████╔██║█████╗  ${N}"
+echo -e "${B}   ██╔═══╝ ██╔══██║██╔══██╗   ██║   ██║██║╚██╔╝██║██╔══╝  ${N}"
+echo -e "${B}   ██║     ██║  ██║██║  ██║   ██║   ██║██║ ╚═╝ ██║███████╗${N}"
+echo -e "${B}   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝${N}"
+echo -e "${B}==========================================================${N}"
+echo -e "${W}                      Made by CodingBoyz                    ${N}"
+echo -e "${B}==========================================================${N}"
+echo -e "${Y} SELECT AN OPTION:${N}"
+echo "  ${B}[1]${N} Create Ubuntu Instance"
+echo "  ${B}[2]${N} Restart Instance"
+echo "  ${B}[3]${N} Edit Configuration"
+echo "  ${B}[4]${N} Tools"
+echo "  ${B}[5]${N} Exit"
+echo -e "${B}==========================================================${N}"
+echo -ne "${W}> Enter Choice [1-5]: ${N}"
+read C
+case $C in 1) create_vps;; 2) restart_vps;; 3) edit_config;; 4) show_tools;; 5) exit 0;; *) echo -e "${R}[X] Invalid${N}"; sleep 1; show_menu;; esac
 }
 
-# FUNCTION: LOADING BAR ANIMATION
-loading_bar() {
-    local title="$1"
-    echo -ne "${LIGHT_BLUE}⏳ $title ${NC}[          ]"
-    sleep 0.3
-    echo -ne "\b\b\b\b\b\b\b\b\b\b\b[===       ]"
-    sleep 0.3
-    echo -ne "\b\b\b\b\b\b\b\b\b\b\b[======     ]"
-    sleep 0.3
-    echo -ne "\b\b\b\b\b\b\b\b\b\b\b[=========  ]"
-    sleep 0.3
-    echo -ne "\b\b\b\b\b\b\b\b\b\b\b[==========]"
-    echo -e " ${GREEN}DONE!${NC}"
+show_tools() {
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${W}                     CODINGBOYZ TOOLS                     ${N}"
+echo -e "${B}==========================================================${N}"
+echo "  ${B}[1]${N} Port Forwarding"
+echo "  ${B}[2]${N} Qemu Installer"
+echo "  ${B}[3]${N} Packages Installer"
+echo "  ${B}[4]${N} Back to Main Menu"
+echo -e "${B}==========================================================${N}"
+echo -ne "${W}> Select Tool [1-4]: ${N}"
+read T
+case $T in 1) tool_port;; 2) tool_qemu;; 3) tool_pkgs;; 4) show_menu;; *) echo -e "${R}[X] Invalid${N}"; sleep 1; show_tools;; esac
 }
 
-# AUTOMATED ROOT/SUDO PRIVILEGE CHECK
-if [ "$(id -u)" -eq 0 ]; then
-    SUDO_CMD=""
-else
-    SUDO_CMD="sudo"
+tool_pkgs() {
+PAGE=0
+PER_PAGE=20
+TOTAL=${#PKGS[@]}
+PAGES=$(( (TOTAL + PER_PAGE - 1) / PER_PAGE ))
+
+while true; do
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${W}                  PACKAGES INSTALLER                     ${N}"
+echo -e "${B}==========================================================${N}"
+echo -e "${Y} Type number to install | 'next' | 'back' | 'menu'${N}"
+echo -e "${B}----------------------------------------------------------${N}"
+
+START=$((PAGE * PER_PAGE))
+END=$((START + PER_PAGE))
+
+for ((i=START; i<END; i++)); do
+    if [ $i -lt $TOTAL ]; then
+        NUM=$((i + 1))
+        printf "${W}[%3d]${N} %-30s\n" "$NUM" "${PKGS[$i]}"
+    fi
+done
+
+echo -e "${B}----------------------------------------------------------${N}"
+echo -e "${W} Page $((PAGE+1)) of $PAGES${N}"
+echo -ne "${W}> Action: ${N}"
+read ANS
+
+if [[ "$ANS" =~ ^[0-9]+$ ]]; then
+    IDX=$((ANS - 1))
+    if [ $IDX -ge 0 ] && [ $IDX -lt $TOTAL ]; then
+        echo -e "${G}[...] Installing ${PKGS[$IDX]}...${N}"
+        $S apt install -y ${PKGS[$IDX]} > /dev/null 2>&1
+        echo -e "${G}[OK] Done.${N}"
+        sleep 1
+    else
+        echo -e "${R}[X] Invalid number.${N}"; sleep 1
+    fi
+elif [[ "$ANS" == "next" ]]; then
+    if [ $PAGE -lt $((PAGES - 1)) ]; then ((PAGE++)); else echo -e "${R}[X] Last page.${N}"; sleep 1; fi
+elif [[ "$ANS" == "back" ]]; then
+    if [ $PAGE -gt 0 ]; then ((PAGE--)); else echo -e "${R}[X] First page.${N}"; sleep 1; fi
+elif [[ "$ANS" == "menu" ]]; then
+    show_tools; return
+fi
+done
+}
+
+tool_port() {
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${W}                   PORT FORWARDING TOOL                   ${N}"
+echo -e "${B}==========================================================${N}"
+echo -ne "${W}> Enter Port to open (e.g 8080): ${N}"
+read PORT
+if [[ -z "$PORT" || ! "$PORT" =~ ^[0-9]+$ ]]; then echo -e "${R}[X] Invalid port.${N}"; sleep 2; show_tools; return; fi
+if ! command -v socat &> /dev/null; then $S apt install -y socat > /dev/null 2>&1; fi
+if $S lsof -i :$PORT > /dev/null 2>&1; then echo -e "${R}[X] Port $PORT in use.${N}"; sleep 2; show_tools; return; fi
+echo -e "${G}[...] Binding Port $PORT...${N}"
+ $S nohup socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:10.0.2.15:$PORT > /dev/null 2>&1 &
+sleep 1
+echo -e "${G}[OK] Port $PORT routed to VPS.${N}"
+echo -ne "${W}> Press Enter...${N}"; read
+show_tools
+}
+
+tool_qemu() {
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${W}                    QEMU INSTALLER                        ${N}"
+echo -e "${B}==========================================================${N}"
+echo -e "${G}[...] Installing QEMU...${N}"
+ $S apt update -y > /dev/null 2>&1
+ $S apt install qemu-system cloud-image-utils wget lsof -y > /dev/null 2>&1
+if command -v qemu-system-x86_64 &> /dev/null; then echo -e "${G}[OK] QEMU Installed.${N}"; else echo -e "${R}[X] Failed.${N}"; fi
+echo -ne "${W}> Press Enter...${N}"; read
+show_tools
+}
+
+edit_config() {
+[ -f ".vps_env" ] && source .vps_env || { RAM_GB=4; CPU_CORES=2; DISK_ADD=10; USER_NAME=root; USER_PASS=1234; TCP_HOST_PORT=2222; }
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${W}                  EDIT VM CONFIGURATION                   ${N}"
+echo -e "${B}==========================================================${N}"
+echo -e "${Y} Leave blank to keep current value.${N}"
+echo -ne "${W}> RAM GB [${G}$RAM_GB${W}]: ${N}"; read N_RAM; RAM_GB=${N_RAM:-$RAM_GB}
+echo -ne "${W}> CPU Cores [${G}$CPU_CORES${W}]: ${N}"; read N_CPU; CPU_CORES=${N_CPU:-$CPU_CORES}
+echo -ne "${W}> Disk ADD GB [${G}$DISK_ADD${W}]: ${N}"; read N_DISK; DISK_ADD=${N_DISK:-$DISK_ADD}
+echo -ne "${W}> Username [${G}$USER_NAME${W}]: ${N}"; read N_USER; USER_NAME=${N_USER:-$USER_NAME}
+echo -ne "${W}> Password [${G}$USER_PASS${W}]: ${N}"; read N_PASS; USER_PASS=${N_PASS:-$USER_PASS}
+
+if [ -f "/home/daytona/ubuntu22.qcow2" ]; then
+    $S virt-customize -a /home/daytona/ubuntu22.qcow2 --run-command 'rm -rf /var/lib/cloud/instances/*' 2>/dev/null || \
+    ($S qemu-nbd --connect=/dev/nbd0 /home/daytona/ubuntu22.qcow2 2>/dev/null && $S mkdir -p /mnt/vm && $S mount /dev/nbd0p1 /mnt/vm 2>/dev/null && $S rm -rf /mnt/vm/var/lib/cloud/instances/* 2>/dev/null && $S umount /mnt/vm 2>/dev/null && $S qemu-nbd --disconnect /dev/nbd0 2>/dev/null)
 fi
 
-# ==========================================
-# MAIN INTERACTIVE MENU
-# ==========================================
-show_menu() {
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${BRIGHT_BLUE}              [💻 CODINGBOYZ VPS MANAGER 💻]              ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${LIGHT_BLUE}   ██████╗  █████╗ ██████╗ ████████╗██╗███╗   ███╗███████╗  ${NC}"
-    echo -e "${LIGHT_BLUE}   ██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██║████╗ ████║██╔════╝  ${NC}"
-    echo -e "${LIGHT_BLUE}   ██████╔╝███████║██████╔╝   ██║   ██║██╔████╔██║█████╗    ${NC}"
-    echo -e "${LIGHT_BLUE}   ██╔═══╝ ██╔══██║██╔══██╗   ██║   ██║██║╚██╔╝██║██╔══╝    ${NC}"
-    echo -e "${LIGHT_BLUE}   ██║     ██║  ██║██║  ██║   ██║   ██║██║ ╚═╝ ██║███████╗  ${NC}"
-    echo -e "${LIGHT_BLUE}   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝  ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}       Made by CodingBoyz | Modified by CodingBoyz       ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo ""
-    echo -e "${YELLOW}👉 SELECT AN OPTION TO PROCEED:${NC}"
-    echo ""
-    echo -e "  ${BRIGHT_BLUE}[1]${NC} Create Ubuntu Instance"
-    echo -e "  ${BRIGHT_BLUE}[2]${NC} Restart Instance"
-    echo -e "  ${BRIGHT_BLUE}[3]${NC} Edit Configuration"
-    echo -e "  ${BRIGHT_BLUE}[4]${NC} Tools"
-    echo -e "  ${BRIGHT_BLUE}[5]${NC} Exit"
-    echo ""
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -ne "${WHITE}🔹 Enter Choice [1-5]: ${NC}"
-    read CHOICE
-    
-    case $CHOICE in
-        1) create_vps ;;
-        2) restart_vps ;;
-        3) edit_config ;;
-        4) show_tools_menu ;;
-        5) exit 0 ;;
-        *) echo -e "${RED}❌ Invalid Choice! Please select 1-5.${NC}"; sleep 2; show_menu ;;
-    esac
-}
-
-# ==========================================
-# ENHANCED TOOLS SUB-MENU
-# ==========================================
-show_tools_menu() {
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${BRIGHT_BLUE}                    🛠️  CODINGBOYZ TOOLS 🛠️                    ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}                  Advanced VPS Utilities                    ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo ""
-    echo -e "  ${BRIGHT_BLUE}[1]${NC} ${LIGHT_BLUE}⚡ Port Forwarding${NC} ${YELLOW}(Expose VPS Ports)${NC}"
-    echo -e "  ${BRIGHT_BLUE}[2]${NC} ${WHITE}⚙️  Qemu Installer${NC} ${YELLOW}(Core System Files)${NC}"
-    echo -e "  ${BRIGHT_BLUE}[3]${NC} ${WHITE}📦 Packages Installer${NC} ${YELLOW}(123 Essential Tools)${NC}"
-    echo -e "  ${BRIGHT_BLUE}[4]${NC} ${WHITE}⬅️  Back to Main Menu${NC}"
-    echo ""
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -ne "${WHITE}🔹 Select Tool [1-4]: ${NC}"
-    read TOOL_CHOICE
-    
-    case $TOOL_CHOICE in
-        1) tool_port_forwarding ;;
-        2) tool_qemu_installer ;;
-        3) tool_packages_installer ;;
-        4) show_menu ;;
-        *) echo -e "${RED}❌ Invalid Choice!${NC}"; sleep 2; show_tools_menu ;;
-    esac
-}
-
-# ==========================================
-# TOOL 3: PACKAGES INSTALLER (123 PACKAGES)
-# ==========================================
-tool_packages_installer() {
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${BRIGHT_BLUE}               📦 MEGA PACKAGE INSTALLER 📦               ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}This will install 123+ essential developer & system tools.${NC}"
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    echo -e "${YELLOW}🔍 Includes categories:${NC}"
-    echo -e "  ${LIGHT_BLUE}• System Utils:${NC} htop, vim, nano, tmux, curl, wget, git, jq"
-    echo -e "  ${LIGHT_BLUE}• Network/SSH:${NC} openssh, net-tools, nmap, socat, wireguard-tools"
-    echo -e "  ${LIGHT_BLUE}• Dev Envs:${NC} build-essential, python3, nodejs, php, ruby"
-    echo -e "  ${LIGHT_BLUE}• Server/DB:${NC} docker.io, mysql-client, postgresql-client, redis"
-    echo -e "  ${LIGHT_BLUE}• Modern CLI:${NC} fzf, ripgrep, bat, lsd, zsh, fish"
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    echo ""
-    echo -e "  ${BRIGHT_BLUE}[1]${NC} ${GREEN}Install All 123+ Packages Now${NC}"
-    echo -e "  ${BRIGHT_BLUE}[2]${NC} ${RED}Cancel and Go Back${NC}"
-    echo ""
-    echo -ne "${WHITE}🔹 Select Choice [1-2]: ${NC}"
-    read PKG_CHOICE
-    
-    if [[ "$PKG_CHOICE" != "1" ]]; then
-        show_tools_menu
-        return
-    fi
-
-    echo ""
-    loading_bar "Refreshing Package Lists"
-    $SUDO_CMD apt update -y > /dev/null 2>&1
-
-    loading_bar "Installing System & Network Tools"
-    $SUDO_CMD apt install -y sudo curl wget git vim nano htop tmux screen tree jq unzip zip tar p7zip-full rar openssh-client openssh-server socat net-tools iproute2 nmap iptables wireguard-tools ngrok cloudflared autossh aria2 rsync lsof strace ltrace iotop atop crontab ffmpeg imagemagick file ufw fail2ban ca-certificates gnupg qemu-utils cloud-image-utils netcat-openbsd traceroute mtr-tiny whois dnsutils sipcalc bridge-utils vlan iw wpasupplicant rfkill ethtool pciutils usbutils smartmontools hdparm lm-sensors acpi bash-completion man-db apparmor auditd logrotate rsyslog unattended-upgrades apt-listchanges needrestart debconf-utils geoip-bin mmdb-bin binutils gdb valgrind bc dc software-properties-common apt-transport-https lsb-release systemd-resolved > /dev/null 2>&1 || true
-
-    loading_bar "Installing Dev Environments & Libraries"
-    $SUDO_CMD apt install -y build-essential gcc g++ make cmake python3 python3-pip python3-venv nodejs npm ruby ruby-dev php-cli libssl-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev libjpeg-dev libpng-dev libwebp-dev > /dev/null 2>&1 || true
-
-    loading_bar "Installing Servers, DBs & Modern CLI"
-    $SUDO_CMD apt install -y docker.io docker-compose mysql-client postgresql-client sqlite3 redis-tools mongosh fzf ripgrep fd-find bat exa lsd tldr zsh fish > /dev/null 2>&1 || true
-
-    # Cleanup to save space
-    loading_bar "Cleaning up apt cache"
-    $SUDO_CMD apt autoremove -y > /dev/null 2>&1
-    $SUDO_CMD apt clean > /dev/null 2>&1
-
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${GREEN}               ✅ 123+ PACKAGES INSTALLED! ✅                 ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}Your server is now a fully loaded development & VPS beast!${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo ""
-    echo -ne "${WHITE}🔹 Press ENTER to return to Tools menu...${NC}"
-    read
-    show_tools_menu
-}
-
-# ==========================================
-# TOOL 1: ENHANCED PORT FORWARDING
-# ==========================================
-tool_port_forwarding() {
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${BRIGHT_BLUE}                 ⚡ PORT FORWARDING TOOL ⚡                 ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}ℹ️  Route external traffic straight into your VPS instantly.${NC}"
-    echo -e "${WHITE}    (No VPS restart required. Applied on the fly.)${NC}"
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    echo ""
-    echo -ne "${LIGHT_BLUE}🌐 Enter the Port to open (e.g., 8080, 3000, 80): ${NC}"
-    read PORT_FWD
-    
-    if [[ -z "$PORT_FWD" || ! "$PORT_FWD" =~ ^[0-9]+$ ]]; then
-        echo -e "${RED}❌ Error: Please enter a valid number for the port!${NC}"
-        sleep 2
-        show_tools_menu
-        return
-    fi
-
-    if ! command -v socat &> /dev/null; then
-        echo -e "${YELLOW}⏳ Installing Port Forwarding dependency (socat)...${NC}"
-        $SUDO_CMD apt-get install -y socat > /dev/null 2>&1
-    fi
-
-    if $SUDO_CMD lsof -i :$PORT_FWD > /dev/null 2>&1; then
-        echo -e "${RED}❌ Error: Port $PORT_FWD is already in use on the main server!${NC}"
-        sleep 3
-        show_tools_menu
-        return
-    fi
-
-    QEMU_GUEST_IP="10.0.2.15"
-    
-    echo ""
-    loading_bar "Binding Port $PORT_FWD to VPS"
-    
-    $SUDO_CMD nohup socat TCP-LISTEN:$PORT_FWD,fork,reuseaddr TCP:$QEMU_GUEST_IP:$PORT_FWD > /dev/null 2>&1 &
-    SOCAT_PID=$!
-    
-    sleep 1
-    if kill -0 $SOCAT_PID 2>/dev/null; then
-        clear
-        echo -e "${DARK_BLUE}==========================================================${NC}"
-        echo -e "${GREEN}                    ✅ PORT ROUTING ACTIVE ✅                    ${NC}"
-        echo -e "${DARK_BLUE}==========================================================${NC}"
-        echo -e "${WHITE}🔗 Mapped Connection:${NC}"
-        echo -e "${YELLOW}      Main Server :${PORT_FWD}  ${BRIGHT_BLUE}━━━▶${NC}  ${YELLOW}VPS Internal :${PORT_FWD}${NC}"
-        echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-        echo -e "${WHITE}💡 Anyone accessing ${BRIGHT_BLUE}http://YOUR_SERVER_IP:${PORT_FWD}${NC}"
-        echo -e "${WHITE}   will be routed directly to your VPS!"
-        echo -e "${DARK_BLUE}==========================================================${NC}"
-    else
-        echo -e "${RED}❌ Failed to bind port. Ensure your VPS is running.${NC}"
-    fi
-    
-    echo ""
-    echo -ne "${WHITE}🔹 Press ENTER to return to Tools menu...${NC}"
-    read
-    show_tools_menu
-}
-
-# ==========================================
-# TOOL 2: QEMU INSTALLER
-# ==========================================
-tool_qemu_installer() {
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${BRIGHT_BLUE}                 ⚙️ QEMU CORE INSTALLER ⚙️                 ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}ℹ️  This will install the QEMU emulator and required tools.${NC}"
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    echo ""
-    
-    loading_bar "Updating Package Lists"
-    $SUDO_CMD apt update -y > /dev/null 2>&1
-    
-    loading_bar "Installing QEMU & Dependencies"
-    $SUDO_CMD apt install qemu-system cloud-image-utils wget lsof -y > /dev/null 2>&1
-    
-    if command -v qemu-system-x86_64 &> /dev/null; then
-        echo ""
-        echo -e "${GREEN}==========================================================${NC}"
-        echo -e "${GREEN}          ✅ QEMU INSTALLED SUCCESSFULLY! ✅                ${NC}"
-        echo -e "${GREEN}==========================================================${NC}"
-        echo -e "${WHITE}You can now safely create and run VPS instances.${NC}"
-        echo -e "${GREEN}==========================================================${NC}"
-    else
-        echo ""
-        echo -e "${RED}❌ Installation failed. Check your internet or apt logs.${NC}"
-    fi
-    
-    echo ""
-    echo -ne "${WHITE}🔹 Press ENTER to return to Tools menu...${NC}"
-    read
-    show_tools_menu
-}
-
-# ==========================================
-# EDIT CONFIGURATION MENU
-# ==========================================
-edit_config() {
-    if [ -f ".vps_env" ]; then
-        source .vps_env
-    else
-        RAM_GB=4; CPU_CORES=2; DISK_ADD=10; USER_NAME=root; USER_PASS=1234; TCP_HOST_PORT=2222
-    fi
-
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${BRIGHT_BLUE}                 ⚙️ EDIT VM CONFIGURATION ⚙️                ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${YELLOW}💡 Leave blank and press ENTER to keep the current value!${NC}"
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    
-    echo -ne "${LIGHT_BLUE}🔹 RAM Size in GB [Current: ${GREEN}${RAM_GB}${LIGHT_BLUE}]: ${NC}"
-    read NEW_RAM
-    RAM_GB=${NEW_RAM:-$RAM_GB}
-    
-    echo -ne "${LIGHT_BLUE}🔹 CPU Cores [Current: ${GREEN}${CPU_CORES}${LIGHT_BLUE}]: ${NC}"
-    read NEW_CPU
-    CPU_CORES=${NEW_CPU:-$CPU_CORES}
-    
-    echo -ne "${LIGHT_BLUE}🔹 Disk Space to ADD in GB [Current: ${GREEN}${DISK_ADD}${LIGHT_BLUE}]: ${NC}"
-    read NEW_DISK
-    DISK_ADD=${NEW_DISK:-$DISK_ADD}
-    
-    echo -ne "${LIGHT_BLUE}🔹 VM Username [Current: ${GREEN}${USER_NAME}${LIGHT_BLUE}]: ${NC}"
-    read NEW_USER
-    USER_NAME=${NEW_USER:-$USER_NAME}
-    
-    echo -ne "${LIGHT_BLUE}🔹 VM Login Password [Current: ${GREEN}${USER_PASS}${LIGHT_BLUE}]: ${NC}"
-    read NEW_PASS
-    USER_PASS=${NEW_PASS:-$USER_PASS}
-    
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    
-    if [ -f "/home/daytona/ubuntu22.qcow2" ]; then
-        loading_bar "Resetting VM password lock state"
-        $SUDO_CMD virt-customize -a /home/daytona/ubuntu22.qcow2 --run-command 'rm -rf /var/lib/cloud/instances/*' 2>/dev/null || \
-        $SUDO_CMD qemu-nbd --connect=/dev/nbd0 /home/daytona/ubuntu22.qcow2 2>/dev/null && \
-        $SUDO_CMD mkdir -p /mnt/vm && $SUDO_CMD mount /dev/nbd0p1 /mnt/vm 2>/dev/null && \
-        $SUDO_CMD rm -rf /mnt/vm/var/lib/cloud/instances/* 2>/dev/null && \
-        $SUDO_CMD umount /mnt/vm 2>/dev/null && $SUDO_CMD qemu-nbd --disconnect /dev/nbd0 2>/dev/null
-    fi
-
-    cat <<EOF > user-data
+cat <<EOF > user-data
 #cloud-config
 disable_root: false
 ssh_pwauth: True
@@ -337,76 +166,35 @@ runcmd:
   - sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
   - systemctl restart sshd
 EOF
-    cloud-localds seed.img user-data > /dev/null 2>&1
-    
-    if [ ! -z "$NEW_DISK" ] && [ -f "/home/daytona/ubuntu22.qcow2" ]; then
-        loading_bar "Resizing virtual hard disk"
-        $SUDO_CMD qemu-img resize /home/daytona/ubuntu22.qcow2 +${DISK_ADD}G > /dev/null 2>&1
-    fi
-
-    save_env
-    
-    echo -e "${GREEN}✅ Configuration updated successfully!${NC}"
-    echo -e "${YELLOW}👉 Select Option [2] Restart Instance to apply changes.${NC}"
-    sleep 3
-    show_menu
+cloud-localds seed.img user-data > /dev/null 2>&1
+[ ! -z "$N_DISK" ] && [ -f "/home/daytona/ubuntu22.qcow2" ] && $S qemu-img resize /home/daytona/ubuntu22.qcow2 +${DISK_ADD}G > /dev/null 2>&1
+save_env
+echo -e "${G}[OK] Updated. Use Option 2 to restart.${N}"; sleep 2; show_menu
 }
 
-# STEP 1: CREATE & BOOT NEW UBUNTU VPS INSTANCE
 create_vps() {
-    # QEMU SUPPORT CHECK
-    if ! command -v qemu-system-x86_64 &> /dev/null; then
-        clear
-        echo -e "${RED}==========================================================${NC}"
-        echo -e "${RED}⚠️  ERROR: QEMU EMULATOR IS NOT INSTALLED! ⚠️               ${NC}"
-        echo -e "${RED}==========================================================${NC}"
-        echo -e "${WHITE}You cannot create a VPS without QEMU.${NC}"
-        echo -e "${YELLOW}👉 Please go to [4] Tools -> [2] Qemu Installer first.${NC}"
-        echo -e "${RED}==========================================================${NC}"
-        sleep 4
-        show_menu
-        return
-    fi
+if ! command -v qemu-system-x86_64 &> /dev/null; then
+clear; echo -e "${R}[!] QEMU NOT INSTALLED.${N}"; echo -e "${Y}> Go to [4] Tools -> [2] Qemu Installer first.${N}"; sleep 3; show_menu; return; fi
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${W}         CONFIGURE VIRTUAL MACHINE SPECIFICATIONS          ${N}"
+echo -e "${B}==========================================================${N}"
+echo -ne "${W}> RAM (GB): ${N}"; read RAM_GB
+echo -ne "${W}> CPU Cores: ${N}"; read CPU_CORES
+echo -ne "${W}> Disk ADD (GB): ${N}"; read DISK_ADD
+echo -ne "${W}> User [root]: ${N}"; read USER_NAME; USER_NAME=${USER_NAME:-root}
+echo -ne "${W}> Pass [1234]: ${N}"; read USER_PASS; USER_PASS=${USER_PASS:-1234}
+TCP_HOST_PORT=${TCP_HOST_PORT:-2222}; TCP_GUEST_PORT=22
 
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}⚙️  CONFIGURE YOUR VIRTUAL MACHINE SPECIFICATIONS${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo ""
-    
-    echo -ne "${BRIGHT_BLUE}🔹 Enter RAM Size in GB (e.g., 4, 8, 16, 32): ${NC}"
-    read RAM_GB
-    echo -ne "${BRIGHT_BLUE}🔹 Enter CPU Cores (e.g., 2, 4, 8): ${NC}"
-    read CPU_CORES
-    echo -ne "${BRIGHT_BLUE}🔹 Enter Disk Space to ADD in GB (e.g., 10, 20): ${NC}"
-    read DISK_ADD
-    
-    echo -ne "${BRIGHT_BLUE}🔹 Create Username (Default: root): ${NC}"
-    read USER_NAME
-    USER_NAME=${USER_NAME:-root}
-    
-    echo -ne "${BRIGHT_BLUE}🔹 Create Password (Default: 1234): ${NC}"
-    read USER_PASS
-    USER_PASS=${USER_PASS:-1234}
-    
-    TCP_HOST_PORT=${TCP_HOST_PORT:-2222}
-    TCP_GUEST_PORT=22
+ $S mkdir -p /home/daytona > /dev/null 2>&1
+if [ ! -f "/home/daytona/ubuntu22.qcow2" ]; then
+    echo -e "${G}[...] Downloading Ubuntu Image...${N}"
+    $S wget -q --show-progress https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img -O /home/daytona/ubuntu22.qcow2
+    $S chmod 666 /home/daytona/ubuntu22.qcow2
+fi
 
-    echo ""
-    
-    $SUDO_CMD mkdir -p /home/daytona > /dev/null 2>&1
-    
-    if [ ! -f "/home/daytona/ubuntu22.qcow2" ]; then
-        echo -e "${YELLOW}📥 Downloading Ubuntu 22.04 Cloud Image to /home/daytona/...${NC}"
-        $SUDO_CMD wget -q --show-progress https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img -O /home/daytona/ubuntu22.qcow2
-        $SUDO_CMD chmod 666 /home/daytona/ubuntu22.qcow2
-    else
-        echo -e "${GREEN}✅ Existing Ubuntu Image Cache Detected at /home/daytona/.${NC}"
-    fi
-    
-    loading_bar "Generating Cloud-Init Matrix"
-    
-    cat <<EOF > user-data
+echo -e "${G}[...] Generating Cloud-Init...${N}"
+cat <<EOF > user-data
 #cloud-config
 disable_root: false
 ssh_pwauth: True
@@ -419,101 +207,65 @@ runcmd:
   - sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
   - systemctl restart sshd
 EOF
-
-    cloud-localds seed.img user-data > /dev/null 2>&1
-    loading_bar "Expanding Server Hard Disk Allocation"
-    $SUDO_CMD qemu-img resize /home/daytona/ubuntu22.qcow2 +${DISK_ADD}G > /dev/null 2>&1
-    
-    save_env
-    boot_qemu
+cloud-localds seed.img user-data > /dev/null 2>&1
+echo -e "${G}[...] Expanding Disk...${N}"
+ $S qemu-img resize /home/daytona/ubuntu22.qcow2 +${DISK_ADD}G > /dev/null 2>&1
+save_env; boot_qemu
 }
 
-# SAVE ENVIRONMENT VARIABLES
 save_env() {
-    echo "RAM_GB=${RAM_GB:-4}" > .vps_env
-    echo "CPU_CORES=${CPU_CORES:-2}" >> .vps_env
-    echo "DISK_ADD=${DISK_ADD:-10}" >> .vps_env
-    echo "USER_NAME=${USER_NAME:-root}" >> .vps_env
-    echo "USER_PASS=${USER_PASS:-1234}" >> .vps_env
-    echo "TCP_HOST_PORT=${TCP_HOST_PORT:-2222}" >> .vps_env
-    echo "TCP_GUEST_PORT=${TCP_GUEST_PORT:-22}" >> .vps_env
+echo "RAM_GB=${RAM_GB:-4}" > .vps_env
+echo "CPU_CORES=${CPU_CORES:-2}" >> .vps_env
+echo "DISK_ADD=${DISK_ADD:-10}" >> .vps_env
+echo "USER_NAME=${USER_NAME:-root}" >> .vps_env
+echo "USER_PASS=${USER_PASS:-1234}" >> .vps_env
+echo "TCP_HOST_PORT=${TCP_HOST_PORT:-2222}" >> .vps_env
+echo "TCP_GUEST_PORT=${TCP_GUEST_PORT:-22}" >> .vps_env
 }
 
-# BOOT QEMU INSTANCE
 boot_qemu() {
-    if [ -f ".vps_env" ]; then
-        source .vps_env
-    fi
+[ -f ".vps_env" ] && source .vps_env
+TCP_HOST_PORT=${TCP_HOST_PORT:-2222}; TCP_GUEST_PORT=${TCP_GUEST_PORT:-22}; RAM_VALUE="${RAM_GB:-4}G"
 
-    TCP_HOST_PORT=${TCP_HOST_PORT:-2222}
-    TCP_GUEST_PORT=${TCP_GUEST_PORT:-22}
-    RAM_VALUE="${RAM_GB:-4}G"
+if pgrep -x "qemu-system-x86" > /dev/null; then
+    echo -e "${Y}[!] Stopping old VPS...${N}"; pkill -9 qemu-system-x86; sleep 2
+fi
 
-    # FORCE KILL OLD VPS BEFORE STARTING
-    if pgrep -x "qemu-system-x86" > /dev/null; then
-        echo -e "${RED}⚠️  Detected an existing VPS running. Force stopping it now...${NC}"
-        pkill -9 qemu-system-x86
-        sleep 2
-        echo -e "${GREEN}✅ Old VPS killed successfully. Starting fresh...${NC}"
-        sleep 1
-    fi
+clear
+sshx_log=$(mktemp)
+{ curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 & } 2>/dev/null
+sleep 5
+SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n 1)
+rm -f "$sshx_log"
 
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    type_effect "💻 CODINGBOYZ SYSTEM SYNCHRONIZED! PIPING TERMINAL CHANNELS..." 0.02
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo ""
-    
-    sshx_log=$(mktemp)
-    { curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 & } 2>/dev/null
-    
-    sleep 5
-    SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n 1)
-    rm -f "$sshx_log"
+clear
+echo -e "${B}==========================================================${N}"
+echo -e "${G}              CODINGBOYZ - VM NETWORK ACTIVE              ${N}"
+echo -e "${B}==========================================================${N}"
+echo -e "${W} User : ${G}${USER_NAME:-root}${N}"
+echo -e "${W} Pass : ${G}${USER_PASS:-1234}${N}"
+echo -e "${W} Specs: ${G}${RAM_VALUE} RAM | ${CPU_CORES:-2} Cores${N}"
+echo -e "${W} Port : ${Y}Host ${TCP_HOST_PORT} -> VM ${TCP_GUEST_PORT}${N}"
+echo -e "${B}----------------------------------------------------------${N}"
+[ ! -z "$SSHX_URL" ] && echo -e "${W} Web Link : ${G}$SSHX_URL${N}" || echo -e "${Y}[i] Web tunnel skipped.${N}"
+echo -e "${B}----------------------------------------------------------${N}"
+echo -e "${W} SSH Cmd  : ${G}ssh ${USER_NAME:-root}@localhost -p ${TCP_HOST_PORT}${N}"
+echo -e "${B}==========================================================${N}"
+echo ""
 
-
-    clear
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${BRIGHT_BLUE}🎉            CODINGBOYZ - VM NETWORK ACTIVE            ${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}👤 Username : ${LIGHT_BLUE}${USER_NAME:-root}${NC}"
-    echo -e "${WHITE}🔑 Password : ${LIGHT_BLUE}${USER_PASS:-1234}${NC}"
-    echo -e "${WHITE}⚙️  Resources: ${LIGHT_BLUE}${RAM_VALUE} RAM | ${CPU_CORES:-2} Cores${NC}"
-    echo -e "${WHITE}🚀 Port Rule : ${YELLOW}Host Port ${TCP_HOST_PORT} -> VM Port ${TCP_GUEST_PORT}${NC}"
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    
-    if [ ! -z "$SSHX_URL" ]; then
-        echo -e "${YELLOW}🔥 POPOUT LIVE ACCESS WEB LINK (Copy & Paste in Browser):${NC}"
-        echo -e "${GREEN}👉 $SSHX_URL 👈${NC}"
-    else
-        echo -e "${YELLOW}ℹ️  Web tunnel skipped (Firewall/Network restriction).${NC}"
-    fi
-    
-    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
-    echo -e "${WHITE}👉 Connect Command : ${BRIGHT_BLUE}ssh ${USER_NAME:-root}@localhost -p ${TCP_HOST_PORT}${NC}"
-    echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo ""
-    
-    qemu-system-x86_64 \
-        -hda /home/daytona/ubuntu22.qcow2 \
-        -m $RAM_VALUE \
-        -smp ${CPU_CORES:-2} \
-        -drive file=seed.img,format=raw \
-        -nographic \
-        -netdev user,id=net0,hostfwd=tcp::${TCP_HOST_PORT}-:${TCP_GUEST_PORT} \
-        -device e1000,netdev=net0
-        }
-
-        # RESTART INSTANCE PIPELINE
-  restart_vps() {
-    if [ -f "/home/daytona/ubuntu22.qcow2" ] && [ -f "seed.img" ]; then
-        boot_qemu
-    else
-        echo -e "${RED}❌ No active configuration blocks found! Please build the instance using Option 1 first.${NC}"
-        sleep 3
-        show_menu
-    fi
+qemu-system-x86_64 \
+-hda /home/daytona/ubuntu22.qcow2 \
+-m $RAM_VALUE \
+-smp ${CPU_CORES:-2} \
+-drive file=seed.img,format=raw \
+-nographic \
+-netdev user,id=net0,hostfwd=tcp::${TCP_HOST_PORT}-:${TCP_GUEST_PORT} \
+-device e1000,netdev=net0
 }
 
-# EXECUTE TRIGGER
+restart_vps() {
+if [ -f "/home/daytona/ubuntu22.qcow2" ] && [ -f "seed.img" ]; then boot_qemu
+else echo -e "${R}[X] No VPS found. Create one first.${N}"; sleep 2; show_menu; fi
+}
+
 show_menu
