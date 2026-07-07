@@ -1,7 +1,7 @@
 #!/bin/bash
 clear
 
-# Colors
+# Colors (Clean & visible on white/dark backgrounds)
 B='\033[1;34m'
 G='\033[0;32m'
 Y='\033[1;33m'
@@ -64,19 +64,19 @@ PAGES=$(( (TOTAL + PER_PAGE - 1) / PER_PAGE ))
 while true; do
 clear
 echo -e "${B}==========================================================${N}"
-echo -e "${W}                  PACKAGES INSTALLER                     ${N}"
+echo -e "${W}                    PACKAGES INSTALLER                     ${N}"
 echo -e "${B}==========================================================${N}"
-echo -e "${Y} Type number to install | 'next' | 'back' | 'menu'${N}"
+echo -e "${Y} Type number to install | next | back | menu${N}"
 echo -e "${B}----------------------------------------------------------${N}"
 
 START=$((PAGE * PER_PAGE))
 END=$((START + PER_PAGE))
+[ $END -gt $TOTAL ] && END=$TOTAL
 
-for ((i=START; i<END; i++)); do
-    if [ $i -lt $TOTAL ]; then
-        NUM=$((i + 1))
-        printf "${W}[%3d]${N} %-30s\n" "$NUM" "${PKGS[$i]}"
-    fi
+# Fixed numbering logic using strict printf alignment
+for (( i=START; i<END; i++ )); do
+    NUM=$((i + 1))
+    printf " ${W}[%3d]${N} %-35s\n" "$NUM" "${PKGS[$i]}"
 done
 
 echo -e "${B}----------------------------------------------------------${N}"
@@ -88,16 +88,16 @@ if [[ "$ANS" =~ ^[0-9]+$ ]]; then
     IDX=$((ANS - 1))
     if [ $IDX -ge 0 ] && [ $IDX -lt $TOTAL ]; then
         echo -e "${G}[...] Installing ${PKGS[$IDX]}...${N}"
-        $S apt install -y ${PKGS[$IDX]} > /dev/null 2>&1
+        $S apt-get install -y "${PKGS[$IDX]}" > /dev/null 2>&1
         echo -e "${G}[OK] Done.${N}"
         sleep 1
     else
         echo -e "${R}[X] Invalid number.${N}"; sleep 1
     fi
 elif [[ "$ANS" == "next" ]]; then
-    if [ $PAGE -lt $((PAGES - 1)) ]; then ((PAGE++)); else echo -e "${R}[X] Last page.${N}"; sleep 1; fi
+    [ $PAGE -lt $((PAGES - 1)) ] && ((PAGE++)) || { echo -e "${R}[X] Last page.${N}"; sleep 1; }
 elif [[ "$ANS" == "back" ]]; then
-    if [ $PAGE -gt 0 ]; then ((PAGE--)); else echo -e "${R}[X] First page.${N}"; sleep 1; fi
+    [ $PAGE -gt 0 ] && ((PAGE--)) || { echo -e "${R}[X] First page.${N}"; sleep 1; }
 elif [[ "$ANS" == "menu" ]]; then
     show_tools; return
 fi
@@ -112,7 +112,7 @@ echo -e "${B}==========================================================${N}"
 echo -ne "${W}> Enter Port to open (e.g 8080): ${N}"
 read PORT
 if [[ -z "$PORT" || ! "$PORT" =~ ^[0-9]+$ ]]; then echo -e "${R}[X] Invalid port.${N}"; sleep 2; show_tools; return; fi
-if ! command -v socat &> /dev/null; then $S apt install -y socat > /dev/null 2>&1; fi
+if ! command -v socat &> /dev/null; then $S apt-get install -y socat > /dev/null 2>&1; fi
 if $S lsof -i :$PORT > /dev/null 2>&1; then echo -e "${R}[X] Port $PORT in use.${N}"; sleep 2; show_tools; return; fi
 echo -e "${G}[...] Binding Port $PORT...${N}"
  $S nohup socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:10.0.2.15:$PORT > /dev/null 2>&1 &
@@ -128,8 +128,8 @@ echo -e "${B}==========================================================${N}"
 echo -e "${W}                    QEMU INSTALLER                        ${N}"
 echo -e "${B}==========================================================${N}"
 echo -e "${G}[...] Installing QEMU...${N}"
- $S apt update -y > /dev/null 2>&1
- $S apt install qemu-system cloud-image-utils wget lsof -y > /dev/null 2>&1
+ $S apt-get update -y > /dev/null 2>&1
+ $S apt-get install -y qemu-system cloud-image-utils wget lsof > /dev/null 2>&1
 if command -v qemu-system-x86_64 &> /dev/null; then echo -e "${G}[OK] QEMU Installed.${N}"; else echo -e "${R}[X] Failed.${N}"; fi
 echo -ne "${W}> Press Enter...${N}"; read
 show_tools
