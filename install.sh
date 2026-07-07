@@ -100,19 +100,80 @@ show_tools_menu() {
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo ""
     echo -e "  ${BRIGHT_BLUE}[1]${NC} ${LIGHT_BLUE}⚡ Port Forwarding${NC} ${YELLOW}(Expose VPS Ports)${NC}"
-    echo -e "  ${BRIGHT_BLUE}[2]${NC} ${WHITE}⚙️ Qemu Installer${NC} ${YELLOW}(Core System Files)${NC}"
-    echo -e "  ${BRIGHT_BLUE}[3]${NC} ${WHITE}⬅️  Back to Main Menu${NC}"
+    echo -e "  ${BRIGHT_BLUE}[2]${NC} ${WHITE}⚙️  Qemu Installer${NC} ${YELLOW}(Core System Files)${NC}"
+    echo -e "  ${BRIGHT_BLUE}[3]${NC} ${WHITE}📦 Packages Installer${NC} ${YELLOW}(123 Essential Tools)${NC}"
+    echo -e "  ${BRIGHT_BLUE}[4]${NC} ${WHITE}⬅️  Back to Main Menu${NC}"
     echo ""
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -ne "${WHITE}🔹 Select Tool [1-3]: ${NC}"
+    echo -ne "${WHITE}🔹 Select Tool [1-4]: ${NC}"
     read TOOL_CHOICE
     
     case $TOOL_CHOICE in
         1) tool_port_forwarding ;;
         2) tool_qemu_installer ;;
-        3) show_menu ;;
+        3) tool_packages_installer ;;
+        4) show_menu ;;
         *) echo -e "${RED}❌ Invalid Choice!${NC}"; sleep 2; show_tools_menu ;;
     esac
+}
+
+# ==========================================
+# TOOL 3: PACKAGES INSTALLER (123 PACKAGES)
+# ==========================================
+tool_packages_installer() {
+    clear
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${BRIGHT_BLUE}               📦 MEGA PACKAGE INSTALLER 📦               ${NC}"
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${WHITE}This will install 123+ essential developer & system tools.${NC}"
+    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
+    echo -e "${YELLOW}🔍 Includes categories:${NC}"
+    echo -e "  ${LIGHT_BLUE}• System Utils:${NC} htop, vim, nano, tmux, curl, wget, git, jq"
+    echo -e "  ${LIGHT_BLUE}• Network/SSH:${NC} openssh, net-tools, nmap, socat, wireguard-tools"
+    echo -e "  ${LIGHT_BLUE}• Dev Envs:${NC} build-essential, python3, nodejs, php, ruby"
+    echo -e "  ${LIGHT_BLUE}• Server/DB:${NC} docker.io, mysql-client, postgresql-client, redis"
+    echo -e "  ${LIGHT_BLUE}• Modern CLI:${NC} fzf, ripgrep, bat, lsd, zsh, fish"
+    echo -e "${DARK_BLUE}----------------------------------------------------------${NC}"
+    echo ""
+    echo -e "  ${BRIGHT_BLUE}[1]${NC} ${GREEN}Install All 123+ Packages Now${NC}"
+    echo -e "  ${BRIGHT_BLUE}[2]${NC} ${RED}Cancel and Go Back${NC}"
+    echo ""
+    echo -ne "${WHITE}🔹 Select Choice [1-2]: ${NC}"
+    read PKG_CHOICE
+    
+    if [[ "$PKG_CHOICE" != "1" ]]; then
+        show_tools_menu
+        return
+    fi
+
+    echo ""
+    loading_bar "Refreshing Package Lists"
+    $SUDO_CMD apt update -y > /dev/null 2>&1
+
+    loading_bar "Installing System & Network Tools"
+    $SUDO_CMD apt install -y sudo curl wget git vim nano htop tmux screen tree jq unzip zip tar p7zip-full rar openssh-client openssh-server socat net-tools iproute2 nmap iptables wireguard-tools ngrok cloudflared autossh aria2 rsync lsof strace ltrace iotop atop crontab ffmpeg imagemagick file ufw fail2ban ca-certificates gnupg qemu-utils cloud-image-utils netcat-openbsd traceroute mtr-tiny whois dnsutils sipcalc bridge-utils vlan iw wpasupplicant rfkill ethtool pciutils usbutils smartmontools hdparm lm-sensors acpi bash-completion man-db apparmor auditd logrotate rsyslog unattended-upgrades apt-listchanges needrestart debconf-utils geoip-bin mmdb-bin binutils gdb valgrind bc dc software-properties-common apt-transport-https lsb-release systemd-resolved > /dev/null 2>&1 || true
+
+    loading_bar "Installing Dev Environments & Libraries"
+    $SUDO_CMD apt install -y build-essential gcc g++ make cmake python3 python3-pip python3-venv nodejs npm ruby ruby-dev php-cli libssl-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev libjpeg-dev libpng-dev libwebp-dev > /dev/null 2>&1 || true
+
+    loading_bar "Installing Servers, DBs & Modern CLI"
+    $SUDO_CMD apt install -y docker.io docker-compose mysql-client postgresql-client sqlite3 redis-tools mongosh fzf ripgrep fd-find bat exa lsd tldr zsh fish > /dev/null 2>&1 || true
+
+    # Cleanup to save space
+    loading_bar "Cleaning up apt cache"
+    $SUDO_CMD apt autoremove -y > /dev/null 2>&1
+    $SUDO_CMD apt clean > /dev/null 2>&1
+
+    clear
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${GREEN}               ✅ 123+ PACKAGES INSTALLED! ✅                 ${NC}"
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo -e "${WHITE}Your server is now a fully loaded development & VPS beast!${NC}"
+    echo -e "${DARK_BLUE}==========================================================${NC}"
+    echo ""
+    echo -ne "${WHITE}🔹 Press ENTER to return to Tools menu...${NC}"
+    read
+    show_tools_menu
 }
 
 # ==========================================
@@ -137,13 +198,11 @@ tool_port_forwarding() {
         return
     fi
 
-    # Install socat if not present
     if ! command -v socat &> /dev/null; then
         echo -e "${YELLOW}⏳ Installing Port Forwarding dependency (socat)...${NC}"
         $SUDO_CMD apt-get install -y socat > /dev/null 2>&1
     fi
 
-    # Check if port is already in use on the host
     if $SUDO_CMD lsof -i :$PORT_FWD > /dev/null 2>&1; then
         echo -e "${RED}❌ Error: Port $PORT_FWD is already in use on the main server!${NC}"
         sleep 3
@@ -197,10 +256,8 @@ tool_qemu_installer() {
     $SUDO_CMD apt update -y > /dev/null 2>&1
     
     loading_bar "Installing QEMU & Dependencies"
-    # Installing exactly what you requested
     $SUDO_CMD apt install qemu-system cloud-image-utils wget lsof -y > /dev/null 2>&1
     
-    # Small verification check
     if command -v qemu-system-x86_64 &> /dev/null; then
         echo ""
         echo -e "${GREEN}==========================================================${NC}"
@@ -297,9 +354,7 @@ EOF
 
 # STEP 1: CREATE & BOOT NEW UBUNTU VPS INSTANCE
 create_vps() {
-    # ==========================================
-    # 🔥 QEMU SUPPORT CHECK: Stop if QEMU is missing
-    # ==========================================
+    # QEMU SUPPORT CHECK
     if ! command -v qemu-system-x86_64 &> /dev/null; then
         clear
         echo -e "${RED}==========================================================${NC}"
@@ -394,9 +449,7 @@ boot_qemu() {
     TCP_GUEST_PORT=${TCP_GUEST_PORT:-22}
     RAM_VALUE="${RAM_GB:-4}G"
 
-    # ==========================================
-    # 🔥 FORCE KILL OLD VPS BEFORE STARTING
-    # ==========================================
+    # FORCE KILL OLD VPS BEFORE STARTING
     if pgrep -x "qemu-system-x86" > /dev/null; then
         echo -e "${RED}⚠️  Detected an existing VPS running. Force stopping it now...${NC}"
         pkill -9 qemu-system-x86
@@ -415,7 +468,7 @@ boot_qemu() {
     { curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 & } 2>/dev/null
     
     sleep 5
-    SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n 1)
+    SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n
     rm -f "$sshx_log"
 
     clear
@@ -448,18 +501,3 @@ boot_qemu() {
         -nographic \
         -netdev user,id=net0,hostfwd=tcp::${TCP_HOST_PORT}-:${TCP_GUEST_PORT} \
         -device e1000,netdev=net0
-}
-
-# RESTART INSTANCE PIPELINE
-restart_vps() {
-    if [ -f "/home/daytona/ubuntu22.qcow2" ] && [ -f "seed.img" ]; then
-        boot_qemu
-    else
-        echo -e "${RED}❌ No active configuration blocks found! Please build the instance using Option 1 first.${NC}"
-        sleep 3
-        show_menu
-    fi
-}
-
-# EXECUTE TRIGGER
-show_menu
