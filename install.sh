@@ -63,7 +63,7 @@ show_menu() {
     echo -e "${LIGHT_BLUE}   ██║     ██║  ██║██║  ██║   ██║   ██║██║ ╚═╝ ██║███████╗  ${NC}"
     echo -e "${LIGHT_BLUE}   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝  ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
-    echo -e "${WHITE}       Made by Deup Gaming | Modified by CodingBoyz       ${NC}"
+    echo -e "${WHITE}       Made by CodingBoyz | Modified by CodingBoyz       ${NC}"
     echo -e "${DARK_BLUE}==========================================================${NC}"
     echo ""
     echo -e "${YELLOW}👉 SELECT AN OPTION TO PROCEED:${NC}"
@@ -468,8 +468,9 @@ boot_qemu() {
     { curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 & } 2>/dev/null
     
     sleep 5
-    SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n
+    SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n 1)
     rm -f "$sshx_log"
+
 
     clear
     echo -e "${DARK_BLUE}==========================================================${NC}"
@@ -501,3 +502,18 @@ boot_qemu() {
         -nographic \
         -netdev user,id=net0,hostfwd=tcp::${TCP_HOST_PORT}-:${TCP_GUEST_PORT} \
         -device e1000,netdev=net0
+        }
+
+        # RESTART INSTANCE PIPELINE
+  restart_vps() {
+    if [ -f "/home/daytona/ubuntu22.qcow2" ] && [ -f "seed.img" ]; then
+        boot_qemu
+    else
+        echo -e "${RED}❌ No active configuration blocks found! Please build the instance using Option 1 first.${NC}"
+        sleep 3
+        show_menu
+    fi
+}
+
+# EXECUTE TRIGGER
+show_menu
