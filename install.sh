@@ -5,6 +5,7 @@ clear
 # COLOR CODES
 # ==========================================
 B='\033[1;34m'
+C='\033[1;36m' # Cyan added for menus
 G='\033[0;32m'
 Y='\033[1;33m'
 R='\033[0;31m'
@@ -39,11 +40,11 @@ show_menu() {
     echo -e "${B}+---------------------------+-------------------------------+${N}"
     echo -e "${B}|${Y}      OPTION NUMBER       ${B}|${W}          ACTION                ${B}|${N}"
     echo -e "${B}+---------------------------+-------------------------------+${N}"
-    echo -e "${B}|${W}         [${G}1${W}]             ${B}|${W}   Create Ubuntu Instance       ${B}|${N}"
-    echo -e "${B}|${W}         [${G}2${W}]             ${B}|${W}   Restart Instance             ${B}|${N}"
-    echo -e "${B}|${W}         [${G}3${W}]             ${B}|${W}   Edit Configuration          ${B}|${N}"
-    echo -e "${B}|${W}         [${G}4${W}]             ${B}|${W}   Tools                       ${B}|${N}"
-    echo -e "${B}|${W}         [${G}5${W}]             ${B}|${W}   Exit                        ${B}|${N}"
+    echo -e "${B}|${W}         [${G}1${W}]             ${B}|${C}   Create Ubuntu Instance       ${B}|${N}"
+    echo -e "${B}|${W}         [${G}2${W}]             ${B}|${C}   Restart Instance             ${B}|${N}"
+    echo -e "${B}|${W}         [${G}3${W}]             ${B}|${C}   Edit Configuration          ${B}|${N}"
+    echo -e "${B}|${W}         [${G}4${W}]             ${B}|${C}   Tools                       ${B}|${N}"
+    echo -e "${B}|${W}         [${G}5${W}]             ${B}|${C}   Exit                        ${B}|${N}"
     echo -e "${B}+---------------------------+-------------------------------+${N}"
     echo ""
     echo -ne "${W}>> Enter Choice [1-5]: ${N}"
@@ -62,36 +63,86 @@ show_tools() {
     echo -e "${B}+---------------------------+-------------------------------+${N}"
     echo -e "${B}|${Y}      OPTION NUMBER       ${B}|${W}          ACTION                ${B}|${N}"
     echo -e "${B}+---------------------------+-------------------------------+${N}"
-    echo -e "${B}|${W}         [${G}1${W}]             ${B}|${W}   Port Forwarding            ${B}|${N}"
-    echo -e "${B}|${W}         [${G}2${W}]             ${B}|${W}   Qemu Installer             ${B}|${N}"
-    echo -e "${B}|${W}         [${G}3${W}]             ${B}|${W}   Packages Installer         ${B}|${N}"
-    echo -e "${B}|${W}         [${G}4${W}]             ${B}|${W}   Root Access (Instant)      ${B}|${N}"
-    echo -e "${B}|${W}         [${G}5${W}]             ${B}|${W}   Back to Main Menu          ${B}|${N}"
+    echo -e "${B}|${W}         [${G}1${W}]             ${B}|${C}   Port Forwarding            ${B}|${N}"
+    echo -e "${B}|${W}         [${G}2${W}]             ${B}|${C}   Qemu Installer             ${B}|${N}"
+    echo -e "${B}|${W}         [${G}3${W}]             ${B}|${C}   Packages Installer         ${B}|${N}"
+    echo -e "${B}|${W}         [${G}4${W}]             ${B}|${C}   Root Access (Instant)      ${B}|${N}"
+    echo -e "${B}|${W}         [${G}5${W}]             ${B}|${C}   GUI Installer              ${B}|${N}"
+    echo -e "${B}|${W}         [${G}6${W}]             ${B}|${C}   Back to Main Menu          ${B}|${N}"
     echo -e "${B}+---------------------------+-------------------------------+${N}"
     echo -e "${B}==========================================================${N}"
-    echo -ne "${W}>> Select Tool [1-5]: ${N}"
+    echo -ne "${W}>> Select Tool [1-6]: ${N}"
     read T
-    case $T in 1) tool_port;; 2) tool_qemu;; 3) tool_pkgs;; 4) tool_root_access;; 5) show_menu;; *) echo -e "${R}[X] Invalid.${N}"; sleep 1; show_tools;; esac
+    case $T in 1) tool_port;; 2) tool_qemu;; 3) tool_pkgs;; 4) tool_root_access;; 5) tool_gui;; 6) show_menu;; *) echo -e "${R}[X] Invalid.${N}"; sleep 1; show_tools;; esac
+}
+
+# ==========================================
+# TOOL 5: GUI INSTALLER
+# ==========================================
+tool_gui() {
+    clear
+    echo -e "${B}==========================================================${N}"
+    echo -e "${W}                    GUI INSTALLER                         ${N}"
+    echo -e "${B}==========================================================${N}"
+    
+    if ! command -v docker &> /dev/null; then
+        echo -e "${Y}[...] Docker not found. Installing Docker & Compose...${N}"
+        $S apt-get update -y > /dev/null 2>&1
+        $S apt-get install -y docker.io docker-compose -y > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            echo -e "${R}[X] Failed to install Docker.${N}"
+            echo -ne "${W}>> Press Enter...${N}"; read; show_tools; return
+        fi
+        echo -e "${G}[OK] Docker installed.${N}"
+    fi
+
+    echo -e "${G}[...] Generating Docker Compose file...${N}"
+    
+    cat <<'EOF' > docker-compose.yml
+services:
+  debian-desktop:
+    image: lscr.io/linuxserver/webtop:debian-xfce
+    container_name: debian-gui
+    privileged: true
+    ports:
+      - "6080:3000"
+EOF
+
+    echo -e "${Y}[...] Stopping old GUI instances...${N}"
+    docker compose down > /dev/null 2>&1
+    
+    echo -e "${G}[...] Starting Debian XFCE GUI (This may take a minute)...${N}"
+    docker compose up -d > /dev/null 2>&1
+    
+    if [ $? -eq 0 ]; then
+        clear
+        echo -e "${B}==========================================================${N}"
+        echo -e "${G}               GUI DESKTOP STARTED SUCCESSFULLY             ${N}"
+        echo -e "${B}==========================================================${N}"
+        echo -e "${W}>> Open your web browser and go to:${N}"
+        echo -e "${C}   http://YOUR_SERVER_IP:6080${N}"
+        echo -e "${B}----------------------------------------------------------${N}"
+        echo -e "${Y}[i] Note: Port 6080 must be open in your firewall.${N}"
+        echo -e "${B}==========================================================${N}"
+    else
+        echo -e "${R}[X] Failed to start GUI. Showing logs:${N}"
+        docker logs debian-gui --tail 20
+    fi
+    
+    echo -ne "${W}>> Press Enter to return...${N}"; read; show_tools
 }
 
 # ==========================================
 # TOOL 4: INSTANT ROOT ACCESS
 # ==========================================
 tool_root_access() {
-    # Check if VPS background process is running
     if ! pgrep -f "qemu-system-x86_64.*ubuntu22.qcow2" > /dev/null; then
         echo -e "${R}[X] VPS is not running! Start it with Option 1 or 2 first.${N}"
-        sleep 3
-        show_tools
-        return
+        sleep 3; show_tools; return
     fi
-
-    # Check if monitor pipe exists
     if [ ! -p "/tmp/cb-qemu-monitor" ]; then
         echo -e "${R}[X] Monitor pipe missing. Please Restart the VPS (Option 2).${N}"
-        sleep 3
-        show_tools
-        return
+        sleep 3; show_tools; return
     fi
 
     clear
@@ -99,10 +150,7 @@ tool_root_access() {
     echo -e "${G}             GRANTING INSTANT ROOT ACCESS...             ${N}"
     echo -e "${B}==========================================================${N}"
     echo -e "${Y}[...] Injecting root terminal bypass...${N}"
-    
-    # Send command directly to QEMU brain to force open root terminal
     echo "gva root" > /tmp/cb-qemu-monitor
-    
     sleep 1
     echo -e "${G}[OK] Root terminal opened!${N}"
     echo -e "${B}----------------------------------------------------------${N}"
@@ -112,22 +160,14 @@ tool_root_access() {
     echo -e "${B}==========================================================${N}"
     echo ""
     
-    # Connect user to the serial console to use that root shell
     stty raw -echo
     cat /tmp/cb-qemu-serial &
     CAT_PID=$!
-    
-    # Read user input and send it to the VM
-    while IFS= read -r -n1 -d '' char; do
-        printf '%s' "$char" > /tmp/cb-qemu-serial
-    done
+    while IFS= read -r -n1 -d '' char; do printf '%s' "$char" > /tmp/cb-qemu-serial; done
     kill $CAT_PID 2>/dev/null
     stty sane
     
-    echo ""
-    echo -e "${G}[OK] Disconnected from VPS.${N}"
-    sleep 1
-    show_tools
+    echo ""; echo -e "${G}[OK] Disconnected from VPS.${N}"; sleep 1; show_tools
 }
 
 # ==========================================
@@ -183,17 +223,18 @@ tool_port() {
 }
 
 # ==========================================
-# TOOL 2: QEMU INSTALLER
+# TOOL 2: QEMU INSTALLER (FIXED PACKAGE NAME)
 # ==========================================
 tool_qemu() {
     clear
     echo -e "${B}==========================================================${N}"
     echo -e "${W}                    QEMU INSTALLER                        ${N}"
     echo -e "${B}==========================================================${N}"
-    echo -e "${G}[...] Installing QEMU...${N}"
+    echo -e "${G}[...] Installing QEMU x86 and dependencies...${N}"
     $S apt-get update -y > /dev/null 2>&1
-    $S apt-get install -y qemu-system cloud-image-utils wget lsof > /dev/null 2>&1
-    command -v qemu-system-x86_64 &> /dev/null && echo -e "${G}[OK] Installed.${N}" || echo -e "${R}[X] Failed.${N}"
+    # FIX: Changed 'qemu-system' to 'qemu-system-x86' to prevent failure
+    $S apt-get install -y qemu-system-x86 qemu-utils cloud-image-utils wget lsof > /dev/null 2>&1
+    command -v qemu-system-x86_64 &> /dev/null && echo -e "${G}[OK] QEMU Installed successfully.${N}" || echo -e "${R}[X] Failed to install.${N}"
     echo -ne "${W}>> Press Enter...${N}"; read; show_tools
 }
 
@@ -301,7 +342,6 @@ boot_qemu() {
         rm -f /tmp/cb-qemu-monitor /tmp/cb-qemu-serial
     fi
 
-    # Create secure pipes for background control
     mkfifo /tmp/cb-qemu-monitor 2>/dev/null
     mkfifo /tmp/cb-qemu-serial 2>/dev/null
 
@@ -327,13 +367,12 @@ boot_qemu() {
     echo -e "${B}----------------------------------------------------------${N}"
     echo -e "${W}>> SSH   : ${G}ssh ${USER_NAME:-root}@localhost -p ${TCP_HOST_PORT}${N}"
     echo -e "${B}----------------------------------------------------------${N}"
-    echo -e "${Y}[i] VPS is now running securely in the background.${N}"
+    echo -e "${Y}[i] VPS is running securely in the background.${N}"
     echo -e "${Y}    Use Tools -> [4] Root Access to get instant shell.${N}"
     echo -e "${B}==========================================================${N}"
     echo -ne "${W}>> Press Enter to return to menu...${N}"
     read
     
-    # Launch QEMU in background (-daemonize) attached to our custom pipes
     qemu-system-x86_64 \
         -hda /home/daytona/ubuntu22.qcow2 \
         -m $RAM_VALUE \
